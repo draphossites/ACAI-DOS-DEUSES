@@ -24,6 +24,7 @@
       <nav class="main-nav" aria-label="Principal">
         <a href="#cardapio">Cardápio</a>
         <a href="#adicionais">Adicionais</a>
+        <a href="#como-pedir">Como pedir</a>
       </nav>
       <button class="cart-button" type="button" data-open-cart aria-haspopup="dialog">
         <span class="bag-icon" aria-hidden="true"></span>
@@ -40,7 +41,10 @@
           <p class="hero-kicker">TRÊS TAMANHOS PARA ESCOLHER</p>
           <h1 id="hero-title">Açaí dos<br><em>Deuses.</em></h1>
           <p class="hero-description">Vai de açaí puro ou monta seu copo com os adicionais que você mais gosta.</p>
-          <a class="btn btn-yellow" href="#cardapio">Montar meu pedido</a>
+          <div class="hero-actions">
+            <a class="btn btn-yellow" href="#cardapio">Montar meu pedido</a>
+            <a class="order-info-link" href="#como-pedir">Entrega e retirada</a>
+          </div>
         </div>
         <div class="hero-photo">
           <img src="img/acai-hero-recorte.webp" alt="Copo de açaí com morango, banana e granola" width="948" height="1080" fetchpriority="high">
@@ -169,6 +173,31 @@
         </div>
       </div>
     </section>
+
+    <section class="order-info-section" id="como-pedir" aria-labelledby="order-info-title">
+      <div class="container order-info-inner">
+        <div class="order-info-intro">
+          <h2 id="order-info-title">Como pedir</h2>
+          <p>Abra a sacola, informe seu nome e escolha entre entrega e retirada. Confira os itens, quantidades, valores, subtotal, taxa e total. Se precisar, deixe uma observação antes de enviar pelo WhatsApp.</p>
+          <button class="btn btn-yellow" type="button" data-open-cart aria-haspopup="dialog" aria-controls="cart-dialog">Abrir sacola</button>
+        </div>
+        <dl class="order-info-details">
+          <div>
+            <dt>Entrega</dt>
+            <dd><strong data-delivery-price>R$ 9,00</strong></dd>
+            <dd class="order-info-detail">Informe rua, número e bairro.</dd>
+          </div>
+          <div>
+            <dt>Retirada</dt>
+            <dd><strong>Sem taxa</strong></dd>
+          </div>
+          <div>
+            <dt>WhatsApp da loja</dt>
+            <dd><a class="order-info-link" data-store-contact href="https://wa.me/5551997259201" target="_blank" rel="noopener noreferrer">(51) 99725-9201</a></dd>
+          </div>
+        </dl>
+      </div>
+    </section>
   </main>
 
   <footer class="site-footer">
@@ -181,6 +210,11 @@
     </div>
   </footer>
 
+  <button class="cart-float btn btn-yellow" type="button" data-floating-cart data-open-cart aria-haspopup="dialog" aria-controls="cart-dialog" hidden>
+    <span class="bag-icon" aria-hidden="true"></span>
+    <span>Abrir sacola</span>
+    <span class="cart-count" data-cart-count>0</span>
+  </button>
   <dialog id="product-dialog" class="shop-dialog" aria-labelledby="product-title"><div id="product-content"></div></dialog>
   <dialog id="cart-dialog" class="shop-dialog" aria-labelledby="cart-title"><div id="cart-content"></div></dialog>
   <div class="live-status" id="site-status" role="status" aria-live="polite"></div>

@@ -32,6 +32,9 @@
   const cartDialog = document.querySelector('#cart-dialog');
   const cartContent = document.querySelector('#cart-content');
   const cartCount = document.querySelectorAll('[data-cart-count]');
+  const cartButtons = document.querySelectorAll('[data-open-cart]');
+  const floatingCart = document.querySelector('[data-floating-cart]');
+  let cartOpener;
   const siteStatus = document.querySelector('#site-status');
   const filterButtons = document.querySelectorAll('[data-filter]');
   const productCards = document.querySelectorAll('[data-category]');
@@ -88,8 +91,9 @@
 
   function updateCartCount() {
     const total = cart.reduce((count, item) => count + item.quantity, 0);
+    floatingCart.hidden = total === 0;
     cartCount.forEach((element) => { element.textContent = total; });
-    document.querySelectorAll('[data-open-cart]').forEach((button) => {
+    cartButtons.forEach((button) => {
       button.setAttribute('aria-label', `Abrir sacola, ${total} ${total === 1 ? 'item' : 'itens'}`);
     });
   }
@@ -415,11 +419,18 @@
     button.addEventListener('click', () => openProduct(button.dataset.product));
   });
 
-  document.querySelectorAll('[data-open-cart]').forEach((button) => {
+  cartButtons.forEach((button) => {
     button.addEventListener('click', () => {
       renderCart();
+      cartOpener = button;
       cartDialog.showModal();
     });
+  });
+
+  cartDialog.addEventListener('close', () => {
+    if (cartOpener === floatingCart && floatingCart.hidden) {
+      cartButtons[0].focus({ preventScroll: true });
+    }
   });
 
   [productDialog, cartDialog].forEach((dialog) => {
@@ -499,5 +510,9 @@
     });
   });
 
+  const storeContact = document.querySelector('[data-store-contact]');
+  storeContact.href = `https://wa.me/${STORE_WHATSAPP}`;
+  storeContact.textContent = STORE_WHATSAPP.replace(/^55(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
+  document.querySelector('[data-delivery-price]').textContent = formatPrice(DELIVERY_FEE_CENTS);
   updateCartCount();
 })();
