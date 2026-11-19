@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#300020">
+  <meta name="description" content="Confira o cardápio do Açaí dos Deuses, monte seu copo e prepare seu pedido.">
+  <title>Açaí dos Deuses | Cardápio e pedidos</title>
+  <link rel="icon" type="image/png" href="img/logo-acai.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=DM+Sans:wght@400;500;600;700;800&display=swap">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#cardapio">Ir para o cardápio</a>
+  <header class="site-header" id="inicio">
+    <div class="container header-inner">
+      <a class="brand" href="#inicio">
+        <img src="img/logo-acai.png" alt="" width="525" height="514">
+        <span>Açaí dos Deuses</span>
+      </a>
+      <nav class="main-nav" aria-label="Principal">
+        <a href="#cardapio">Cardápio</a>
+        <a href="#adicionais">Adicionais</a>
+      </nav>
+      <button class="cart-button" type="button" data-open-cart aria-haspopup="dialog">
+        <span class="bag-icon" aria-hidden="true"></span>
+        <span class="cart-button-label">Meu pedido</span>
+        <span class="cart-count" data-cart-count>0</span>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="container hero-inner">
+        <div class="hero-copy">
+          <p class="hero-kicker">TRÊS TAMANHOS PARA ESCOLHER</p>
+          <h1 id="hero-title">Açaí dos<br><em>Deuses.</em></h1>
+          <p class="hero-description">Vai de açaí puro ou monta seu copo com os adicionais que você mais gosta.</p>
+          <a class="btn btn-yellow" href="#cardapio">Montar meu pedido</a>
+        </div>
+        <div class="hero-photo">
+          <img src="img/acai-hero-recorte.webp" alt="Copo de açaí com morango, banana e granola" width="948" height="1080" fetchpriority="high">
+        </div>
+      </div>
+    </section>
+
+    <section class="menu-section" id="cardapio" aria-labelledby="menu-title">
+      <div class="container">
+        <div class="menu-heading">
+          <div>
+            <h2 id="menu-title">Cardápio</h2>
+            <p>Escolha a versão e o tamanho do seu copo.</p>
+          </div>
+          <div class="filters" role="group" aria-label="Filtrar cardápio">
+            <button type="button" data-filter="all" aria-pressed="true">Todos</button>
+            <button type="button" data-filter="mix" aria-pressed="false">Com adicionais</button>
+            <button type="button" data-filter="pure" aria-pressed="false">Açaí puro</button>
+          </div>
+        </div>
+
+        <div class="product-grid">
+          <article class="product-card" data-category="mix">
+            <div class="product-photo">
+              <img src="img/acai-adicionais-recorte.webp" alt="Açaí com frutas e granola" width="720" height="720" loading="lazy">
+              <span class="product-size">300 ml</span>
+            </div>
+            <div class="product-copy">
+              <h3>Copo com adicionais</h3>
+              <p>Personalize com seus favoritos.</p>
+              <div class="product-actions"><strong>R$ 12,00</strong><button type="button" class="choose-button" data-product="mix-300" aria-label="Escolher copo com adicionais de 300 ml" aria-haspopup="dialog">Escolher <span aria-hidden="true">+</span></button></div>
+            </div>
+          </article>
+
+          <article class="product-card" data-category="mix">
+            <div class="product-photo">
+              <img src="img/acai-adicionais-recorte.webp" alt="Açaí com frutas e granola" width="720" height="720" loading="lazy">
+              <span class="product-size">400 ml</span>
+            </div>
+            <div class="product-copy">
+              <h3>Copo com adicionais</h3>
+              <p>Personalize com seus favoritos.</p>
+              <div class="product-actions"><strong>R$ 15,00</strong><button type="button" class="choose-button" data-product="mix-400" aria-label="Escolher copo com adicionais de 400 ml" aria-haspopup="dialog">Escolher <span aria-hidden="true">+</span></button></div>
+            </div>
+          </article>
+
+          <article class="product-card" data-category="mix">
+            <div class="product-photo">
+              <img src="img/acai-adicionais-recorte.webp" alt="Açaí com frutas e granola" width="720" height="720" loading="lazy">
+              <span class="product-size">500 ml</span>
+            </div>
+            <div class="product-copy">
+              <h3>Copo com adicionais</h3>
+              <p>Personalize com seus favoritos.</p>
+              <div class="product-actions"><strong>R$ 18,00</strong><button type="button" class="choose-button" data-product="mix-500" aria-label="Escolher copo com adicionais de 500 ml" aria-haspopup="dialog">Escolher <span aria-hidden="true">+</span></button></div>
+            </div>
+          </article>
+
+          <article class="product-card" data-category="pure">
+            <div class="product-photo">
+              <img src="img/acai-puro-recorte.webp" alt="Copo de açaí puro" width="720" height="720" loading="lazy">
+              <span class="product-size">300 ml</span>
+            </div>
+            <div class="product-copy">
+              <h3>Açaí puro</h3>
+              <p>Só açaí, sem adicionais.</p>
+              <div class="product-actions"><strong>R$ 14,00</strong><button type="button" class="choose-button" data-product="pure-300" aria-label="Escolher açaí puro de 300 ml" aria-haspopup="dialog">Escolher <span aria-hidden="true">+</span></button></div>
+            </div>
+          </article>
+
+          <article class="product-card" data-category="pure">
+            <div class="product-photo">
+              <img src="img/acai-puro-recorte.webp" alt="Copo de açaí puro" width="720" height="720" loading="lazy">
+              <span class="product-size">400 ml</span>
+            </div>
+            <div class="product-copy">
+              <h3>Açaí puro</h3>
+              <p>Só açaí, sem adicionais.</p>
+              <div class="product-actions"><strong>R$ 18,00</strong><button type="button" class="choose-button" data-product="pure-400" aria-label="Escolher açaí puro de 400 ml" aria-haspopup="dialog">Escolher <span aria-hidden="true">+</span></button></div>
+            </div>
+          </article>
+
+          <article class="product-card" data-category="pure">
+            <div class="product-photo">
+              <img src="img/acai-puro-recorte.webp" alt="Copo de açaí puro" width="720" height="720" loading="lazy">
+              <span class="product-size">500 ml</span>
+            </div>
+            <div class="product-copy">
+              <h3>Açaí puro</h3>
+              <p>Só açaí, sem adicionais.</p>
+              <div class="product-actions"><strong>R$ 20,00</strong><button type="button" class="choose-button" data-product="pure-500" aria-label="Escolher açaí puro de 500 ml" aria-haspopup="dialog">Escolher <span aria-hidden="true">+</span></button></div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="toppings-section" id="adicionais" aria-labelledby="toppings-title">
+      <div class="container toppings-inner">
+        <div class="toppings-intro">
+          <h2 id="toppings-title">Escolha seus <br>adicionais.</h2>
+          <p>Essas opções aparecem ao montar um copo com adicionais.</p>
+          <button class="btn btn-yellow" type="button" data-product="mix-300" aria-haspopup="dialog">Montar meu copo</button>
+        </div>
+        <div class="toppings-card">
+          <h3>Sem custo extra</h3>
+          <ul>
+            <li>Leite condensado</li>
+            <li>Leite em pó</li>
+            <li>Granola</li>
+            <li>Paçoca</li>
+            <li>Banana</li>
+          </ul>
+        </div>
+        <div class="toppings-card">
+          <h3>Adicionais pagos</h3>
+          <ul>
+            <li><span>Morango</span><strong>R$ 3,00</strong></li>
+            <li><span>Bis</span><strong>R$ 2,00</strong></li>
+            <li><span>Mousse</span><strong>R$ 3,00</strong></li>
+            <li><span>Creme Leitinho</span><strong>R$ 4,00</strong></li>
+            <li><span>Creme de Avelã</span><strong>R$ 3,50</strong></li>
+            <li><span>Ovomaltine</span><strong>R$ 3,00</strong></li>
+            <li><span>Amendoim triturado</span><strong>R$ 2,00</strong></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <a class="brand" href="#inicio">
+        <img src="img/logo-acai.png" alt="" width="525" height="514" loading="lazy">
+        <span>Açaí dos Deuses</span>
+      </a>
+      <a class="footer-link" href="#cardapio">Voltar ao cardápio</a>
+    </div>
+  </footer>
+
+  <dialog id="product-dialog" class="shop-dialog" aria-labelledby="product-title"><div id="product-content"></div></dialog>
+  <dialog id="cart-dialog" class="shop-dialog" aria-labelledby="cart-title"><div id="cart-content"></div></dialog>
+  <div class="live-status" id="site-status" role="status" aria-live="polite"></div>
+</body>
+</html>
