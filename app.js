@@ -3,6 +3,7 @@
 
   // Informe o número da loja com código do país e DDD, usando apenas dígitos.
   const STORE_WHATSAPP = '5551997259201';
+  const DELIVERY_FEE_CENTS = 900;
   const STORAGE_KEY = 'acai-dos-deuses-cart-v1';
   const MAX_QUANTITY = 99;
   const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -35,6 +36,15 @@
   const filterButtons = document.querySelectorAll('[data-filter]');
   const productCards = document.querySelectorAll('[data-category]');
   let cart = loadCart();
+  const checkoutDraft = {
+    customerName: '',
+    fulfillment: '',
+    street: '',
+    streetNumber: '',
+    neighborhood: '',
+    payment: '',
+    notes: '',
+  };
   let statusTimer;
   let clearStatusTimer;
 
@@ -222,12 +232,30 @@
     productDialog.showModal();
   }
 
-  function cartTotal() {
-    return cart.reduce((total, item) => total + lineTotal(item), 0);
+  function orderTotals(fulfillment) {
+    const subtotal = cart.reduce((total, item) => total + lineTotal(item), 0);
+    const deliveryFee = fulfillment === 'delivery' ? DELIVERY_FEE_CENTS : 0;
+    return { subtotal, deliveryFee, total: subtotal + deliveryFee };
+  }
+
+  function updateCheckout(form) {
+    const address = form.querySelector('.checkout-address');
+    const { subtotal, deliveryFee, total } = orderTotals(checkoutDraft.fulfillment);
+    address.hidden = address.disabled = checkoutDraft.fulfillment !== 'delivery';
+    form.querySelector('[data-checkout-subtotal]').textContent = formatPrice(subtotal);
+    form.querySelector('[data-checkout-fee]').textContent = checkoutDraft.fulfillment ? formatPrice(deliveryFee) : '—';
+    form.querySelector('[data-checkout-total]').textContent = checkoutDraft.fulfillment ? formatPrice(total) : '—';
+  }
+
+  function rememberCheckout(form) {
+    for (const name of Object.keys(checkoutDraft)) {
+      checkoutDraft[name] = form.elements.namedItem(name).value;
+    }
   }
 
   function renderCart() {
     if (cart.length === 0) {
+      for (const name of Object.keys(checkoutDraft)) checkoutDraft[name] = '';
       cartContent.innerHTML = `
         ${dialogHeader('cart-title', 'Sua sacola')}
         <div class="dialog-body cart-empty">
@@ -237,9 +265,8 @@
       return;
     }
 
-    const checkoutNote = STORE_WHATSAPP
-      ? 'Confirme a entrega e o pagamento com a loja pelo WhatsApp.'
-      : 'O número da loja ainda não foi informado. Você pode copiar o pedido ou escolher um contato no WhatsApp.';
+    const previousForm = cartContent.querySelector('#checkout-form');
+    if (previousForm) rememberCheckout(previousForm);
 
     cartContent.innerHTML = `
       ${dialogHeader('cart-title', 'Sua sacola')}
@@ -264,52 +291,131 @@
           }).join('')}
         </ul>
       </div>
-      <div class="dialog-footer">
-        <div class="dialog-total"><span>Total dos itens</span><strong aria-live="polite">${formatPrice(cartTotal())}</strong></div>
-        <p class="order-note">${checkoutNote}</p>
-        <a class="dialog-action btn btn-primary" href="${whatsAppUrl()}" target="_blank" rel="noopener noreferrer">${STORE_WHATSAPP ? 'Enviar pedido pelo WhatsApp' : 'Compartilhar no WhatsApp'}</a>
-        <button class="dialog-secondary btn btn-secondary" type="button" data-copy-order>Copiar pedido</button>
-        <p class="order-note" role="status" data-copy-status hidden></p>
-      </div>`;
+      <form id="checkout-form" class="checkout-form" aria-labelledby="checkout-title" novalidate>
+        <div class="dialog-body">
+          <h3 class="checkout-heading" id="checkout-title">Dados do pedido</h3>
+          <label class="checkout-field">
+            Nome do cliente
+            <input type="text" name="customerName" autocomplete="name" maxlength="100" required>
+          </label>
+          <fieldset class="checkout-fulfillment dialog-section">
+            <legend>Como você quer receber?</legend>
+            <div class="checkout-options dialog-options">
+              <label class="dialog-choice"><input type="radio" name="fulfillment" value="delivery" required> Entrega <span class="dialog-choice-price">${formatPrice(DELIVERY_FEE_CENTS)}</span></label>
+              <label class="dialog-choice"><input type="radio" name="fulfillment" value="pickup" required> Retirada</label>
+            </div>
+          </fieldset>
+          <fieldset class="checkout-address dialog-section" hidden disabled>
+            <legend>Endereço de entrega</legend>
+            <div class="checkout-address-grid">
+              <label class="checkout-field">
+                Rua
+                <input type="text" name="street" autocomplete="address-line1" maxlength="120" required>
+              </label>
+              <label class="checkout-field">
+                Número
+                <input type="text" name="streetNumber" maxlength="24" required>
+              </label>
+              <label class="checkout-field">
+                Bairro
+                <input type="text" name="neighborhood" autocomplete="address-level3" maxlength="80" required>
+              </label>
+            </div>
+          </fieldset>
+          <label class="checkout-field">
+            <span>Forma de pagamento <span class="checkout-optional">(opcional)</span></span>
+            <input type="text" name="payment" maxlength="60">
+          </label>
+          <label class="checkout-field">
+            <span>Observações <span class="checkout-optional">(opcional)</span></span>
+            <textarea name="notes" rows="2" maxlength="300"></textarea>
+          </label>
+        </div>
+        <div class="dialog-footer">
+          <div class="checkout-totals" aria-live="polite" aria-atomic="true">
+            <div class="dialog-total"><span>Subtotal</span><strong data-checkout-subtotal></strong></div>
+            <div class="dialog-total"><span>Taxa de entrega</span><strong data-checkout-fee></strong></div>
+            <div class="dialog-total checkout-grand-total"><span>Total do pedido</span><strong data-checkout-total></strong></div>
+          </div>
+          <button class="dialog-action btn btn-primary" type="submit">Enviar pedido pelo WhatsApp</button>
+          <p class="checkout-note order-note">Confira a mensagem pronta e confirme o envio no WhatsApp.</p>
+          <button class="dialog-secondary btn btn-secondary" type="button" data-copy-order>Copiar pedido</button>
+          <textarea class="order-summary" rows="4" aria-label="Resumo do pedido para copiar" data-copy-fallback readonly hidden></textarea>
+          <p class="order-note" role="status" data-copy-status hidden></p>
+        </div>
+      </form>`;
+
+    const form = cartContent.querySelector('#checkout-form');
+    for (const name of Object.keys(checkoutDraft)) {
+      form.elements.namedItem(name).value = checkoutDraft[name];
+    }
+    updateCheckout(form);
   }
 
   function orderSummary() {
+    const delivery = checkoutDraft.fulfillment === 'delivery';
+    const { subtotal, deliveryFee, total } = orderTotals(checkoutDraft.fulfillment);
+    const message = [
+      '🍧 *NOVO PEDIDO — AÇAÍ DOS DEUSES*',
+      '',
+      `👤 *Cliente:* ${checkoutDraft.customerName.trim()}`,
+      `📦 *Recebimento:* ${delivery ? 'Entrega' : 'Retirada'}`,
+    ];
+    if (delivery) {
+      message.push(
+        `📍 *Endereço:* ${checkoutDraft.street.trim()}, ${checkoutDraft.streetNumber.trim()}`,
+        `🏘️ *Bairro:* ${checkoutDraft.neighborhood.trim()}`,
+      );
+    }
+
     const lines = cart.flatMap((item) => {
       const name = `${categories[item.category].title} de ${item.size} ml`;
       const choices = itemToppings(item).map((topping) => topping.name).join(', ');
       const line = `• ${item.quantity} × ${name} — ${formatPrice(lineTotal(item))}`;
       return choices ? [line, `  Adicionais: ${choices}`] : [line];
     });
+    message.push(
+      '', '🛒 *ITENS DO PEDIDO:*', ...lines, '',
+      `💰 *Subtotal:* ${formatPrice(subtotal)}`,
+      `🛵 *Taxa de entrega:* ${formatPrice(deliveryFee)}`,
+      `💵 *TOTAL: ${formatPrice(total)}*`,
+    );
 
-    return ['Olá! Gostaria de fazer um pedido no Açaí dos Deuses.', '', ...lines, '', `Total dos itens: ${formatPrice(cartTotal())}`].join('\n');
+    const payment = checkoutDraft.payment.trim();
+    const notes = checkoutDraft.notes.trim();
+    if (payment) message.push('', `💳 *Pagamento:* ${payment}`);
+    if (notes) message.push('', `📝 *Observações:* ${notes}`);
+    message.push('', 'Aguardo a confirmação do pedido!');
+
+    return message.join('\n');
   }
 
-  function whatsAppUrl() {
-    return `https://wa.me/${STORE_WHATSAPP}?text=${encodeURIComponent(orderSummary())}`;
+  function validCheckout(form) {
+    rememberCheckout(form);
+    updateCheckout(form);
+    for (const name of ['customerName', 'street', 'streetNumber', 'neighborhood']) {
+      const field = form.elements.namedItem(name);
+      field.setCustomValidity(field.value.trim() ? '' : 'Preencha este campo.');
+    }
+    return form.reportValidity();
   }
 
-  async function copyOrder() {
-    const summary = orderSummary();
-    const button = cartContent.querySelector('[data-copy-order]');
-    const status = cartContent.querySelector('[data-copy-status]');
+  async function copyOrder(form, summary) {
+    const field = form.querySelector('[data-copy-fallback]');
+    const status = form.querySelector('[data-copy-status]');
 
     try {
       await navigator.clipboard.writeText(summary);
-      status.hidden = false;
+      field.hidden = true;
       status.textContent = 'Pedido copiado.';
     } catch {
-      const field = document.createElement('textarea');
-      field.className = 'order-summary';
-      field.rows = 4;
-      field.readOnly = true;
       field.value = summary;
-      field.setAttribute('aria-label', 'Resumo do pedido para copiar');
-      button.replaceWith(field);
-      status.hidden = false;
+      field.hidden = false;
       status.textContent = 'Selecione e copie o resumo do seu pedido.';
       field.focus();
       field.select();
     }
+    status.hidden = false;
   }
 
   document.querySelectorAll('[data-product]').forEach((button) => {
@@ -329,12 +435,36 @@
     });
   });
 
+  cartContent.addEventListener('change', (event) => {
+    if (event.target.name !== 'fulfillment') return;
+    const form = event.target.form;
+    rememberCheckout(form);
+    updateCheckout(form);
+  });
+
+  cartContent.addEventListener('input', (event) => {
+    const form = event.target.form;
+    if (form?.id !== 'checkout-form') return;
+    form.querySelector('[data-copy-fallback]').hidden = true;
+    form.querySelector('[data-copy-status]').hidden = true;
+  });
+
+  cartContent.addEventListener('submit', (event) => {
+    if (event.target.id !== 'checkout-form') return;
+    event.preventDefault();
+    if (!cart.length || !validCheckout(event.target)) return;
+
+    const url = `https://wa.me/${STORE_WHATSAPP}?text=${encodeURIComponent(orderSummary())}`;
+    window.open(url, '_blank', 'noopener,noreferrer');
+  });
+
   cartContent.addEventListener('click', (event) => {
     const button = event.target.closest('button');
     if (!button) return;
 
     if (button.hasAttribute('data-copy-order')) {
-      void copyOrder();
+      const form = button.form;
+      if (validCheckout(form)) void copyOrder(form, orderSummary());
       return;
     }
 
