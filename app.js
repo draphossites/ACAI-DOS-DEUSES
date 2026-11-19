@@ -42,7 +42,6 @@
     street: '',
     streetNumber: '',
     neighborhood: '',
-    payment: '',
     notes: '',
   };
   let statusTimer;
@@ -323,10 +322,6 @@
             </div>
           </fieldset>
           <label class="checkout-field">
-            <span>Forma de pagamento <span class="checkout-optional">(opcional)</span></span>
-            <input type="text" name="payment" maxlength="60">
-          </label>
-          <label class="checkout-field">
             <span>Observações <span class="checkout-optional">(opcional)</span></span>
             <textarea name="notes" rows="2" maxlength="300"></textarea>
           </label>
@@ -381,9 +376,7 @@
       `💵 *TOTAL: ${formatPrice(total)}*`,
     );
 
-    const payment = checkoutDraft.payment.trim();
     const notes = checkoutDraft.notes.trim();
-    if (payment) message.push('', `💳 *Pagamento:* ${payment}`);
     if (notes) message.push('', `📝 *Observações:* ${notes}`);
     message.push('', 'Aguardo a confirmação do pedido!');
 
