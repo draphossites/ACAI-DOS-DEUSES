@@ -28,6 +28,7 @@
     { id: 'ovomaltine', name: 'Ovomaltine', price: 300 },
     { id: 'amendoim', name: 'Amendoim triturado', price: 200 },
   ];
+  const paidToppings = toppings.filter((topping) => topping.price > 0);
 
   const productDialog = document.querySelector('#product-dialog');
   const productContent = document.querySelector('#product-content');
@@ -69,11 +70,19 @@
         const selected = item.category === 'mix' && Array.isArray(item.toppings)
           ? toppings.filter((topping) => item.toppings.includes(topping.id)).map((topping) => topping.id)
           : [];
+        const extras = item.category === 'mix' && Array.isArray(item.extras)
+          ? paidToppings.flatMap(({ id }) => {
+            const savedExtra = item.extras.find((extra) => extra?.id === id
+              && Number.isInteger(extra.quantity) && extra.quantity > 0);
+            return savedExtra ? [{ id, quantity: Math.min(savedExtra.quantity, MAX_QUANTITY) }] : [];
+          })
+          : [];
 
         return [{
           category: item.category,
           size: Number(item.size),
           toppings: selected,
+          ...(extras.length ? { extras } : {}),
           quantity: Math.min(item.quantity, MAX_QUANTITY),
         }];
       });
@@ -112,6 +121,23 @@
     return toppings.filter((topping) => item.toppings.includes(topping.id));
   }
 
+  function itemExtras(item) {
+    return (item.extras ?? []).map(({ id, quantity }) => ({
+      ...paidToppings.find((topping) => topping.id === id),
+      quantity,
+    }));
+  }
+
+  function extraToppingsTotal(item) {
+    return itemExtras(item).reduce((total, { price, quantity }) => total + price * quantity, 0);
+  }
+
+  function describeExtras(item) {
+    return itemExtras(item)
+      .map(({ name, price, quantity }) => `${quantity} × ${name} (+ ${formatPrice(price * quantity)})`)
+      .join(', ');
+  }
+
   function toppingSelection(item) {
     const selected = itemToppings(item);
     const freeCount = selected.filter((topping) => topping.price === 0).length;
@@ -134,8 +160,8 @@
 
   function lineTotal(item) {
     const basePrice = categories[item.category].prices[item.size];
-    const extras = itemToppings(item).reduce((price, topping) => price + topping.price, 0);
-    return (basePrice + extras) * item.quantity;
+    const selectedToppingPrice = itemToppings(item).reduce((price, topping) => price + topping.price, 0);
+    return (basePrice + selectedToppingPrice + extraToppingsTotal(item)) * item.quantity;
   }
 
   function dialogHeader(id, title, description) {
@@ -159,7 +185,7 @@
   }
 
   function toppingOptions(paid) {
-    const options = toppings.filter((topping) => paid ? topping.price > 0 : topping.price === 0);
+    const options = paid ? paidToppings : toppings.filter((topping) => topping.price === 0);
     return `
       <fieldset class="dialog-section" data-topping-group="${paid ? 'paid' : 'free'}">
         <legend>${paid ? 'Adicionais pagos' : 'Adicionais grátis'} <span class="topping-counter" data-topping-counter></span></legend>
@@ -172,6 +198,25 @@
             </label>`).join('')}
         </div>
       </fieldset>`;
+  }
+
+  function paidExtraOptions() {
+    return `
+      <details class="paid-extras">
+        <summary>Extras pagos</summary>
+        <fieldset class="dialog-section" aria-label="Porções extras pagas">
+          <p class="paid-extras-note">Escolha quantas porções extras quer em cada copo. O preço é por porção.</p>
+          <div class="paid-extra-list">
+            ${paidToppings.map(({id, name, price}) => `
+              <label class="paid-extra-row">
+                <span>${name}</span>
+                <span class="paid-extra-price">+ ${formatPrice(price)}</span>
+                <input class="paid-extra-quantity" type="number" min="0" max="${MAX_QUANTITY}" step="1" value="0" inputmode="numeric" data-extra-topping="${id}" aria-label="Porções extras de ${name} por copo">
+              </label>`).join('')}
+          </div>
+          <p class="paid-extras-subtotal">Extras por copo <strong data-paid-extra-total>${formatPrice(0)}</strong></p>
+        </fieldset>
+      </details>`;
   }
 
   function openProduct(key) {
@@ -198,6 +243,7 @@
           ${category === 'mix' ? `
             <p class="topping-limit-message" data-topping-limit-message role="status" aria-live="polite" aria-atomic="true"></p>
             ${toppingOptions(false) + toppingOptions(true)}
+            ${paidExtraOptions()}
           ` : ''}
         </div>
         <div class="dialog-footer">
@@ -218,6 +264,9 @@
     const addButton = form.querySelector('[data-add-product]');
     const limitMessage = form.querySelector('[data-topping-limit-message]');
     const sizeInput = form.elements.namedItem('size');
+    const extraDetails = form.querySelector('.paid-extras');
+    const extraTotal = form.querySelector('[data-paid-extra-total]');
+    const extraInputs = [...form.querySelectorAll('[data-extra-topping]')];
     const groups = [...form.querySelectorAll('[data-topping-group]')].map((group) => ({
       type: group.dataset.toppingGroup,
       counter: group.querySelector('[data-topping-counter]'),
@@ -226,11 +275,19 @@
     const toppingInputs = groups.flatMap((group) => group.options);
 
     function selectedItem() {
+      const extras = extraInputs.flatMap((input) => {
+        const amount = input.valueAsNumber;
+        return Number.isInteger(amount) && amount > 0 && amount <= MAX_QUANTITY
+          ? [{ id: input.dataset.extraTopping, quantity: amount }]
+          : [];
+      });
+
       return {
         category,
         quantity,
         size: Number(sizeInput.value),
         toppings: toppingInputs.filter((input) => input.checked).map((input) => input.value),
+        ...(extras.length ? { extras } : {}),
       };
     }
 
@@ -239,6 +296,7 @@
       if (totalValue.textContent !== price) totalValue.textContent = price;
       if (category !== 'mix') return true;
 
+      extraTotal.textContent = formatPrice(extraToppingsTotal(item));
       const selection = toppingSelection(item);
       const { free, paid } = selection;
       const issue = toppingIssue(selection);
@@ -251,16 +309,17 @@
         }
       }
 
-      let hint = 'Escolha adicionais grátis ou pagos, um tipo por copo.';
+      let hint = 'Na seleção principal, escolha adicionais grátis ou pagos.';
       if (free.count) {
         hint = 'Desmarque os adicionais grátis para escolher os pagos.';
       } else if (paid.count) {
         hint = 'Desmarque os adicionais pagos para escolher os grátis.';
       }
+      hint += ' Use Extras pagos para acrescentar porções.';
 
       const warnings = [];
       if (issue === 'mixed') {
-        warnings.push('Escolha um tipo de adicional. Desmarque todos os grátis ou todos os pagos.');
+        warnings.push('Escolha um tipo na seleção principal. Desmarque todos os grátis ou todos os pagos.');
       }
       if (free.count > free.limit) {
         warnings.push(`Desmarque adicionais grátis até ficar com ${free.limit} ou escolha um copo maior.`);
@@ -284,14 +343,21 @@
     }
 
     form.addEventListener('change', () => updateProduct());
+    form.addEventListener('input', (event) => {
+      if (event.target.hasAttribute('data-extra-topping')) updateProduct();
+    });
+    form.addEventListener('invalid', (event) => {
+      if (event.target.hasAttribute('data-extra-topping')) extraDetails.open = true;
+    }, true);
     decrement.addEventListener('click', () => changeQuantity(-1));
     increment.addEventListener('click', () => changeQuantity(1));
     form.addEventListener('submit', (event) => {
       event.preventDefault();
       const item = selectedItem();
-      if (!Object.hasOwn(product.prices, item.size) || !updateProduct(item)) return;
+      if (!Object.hasOwn(product.prices, item.size) || !updateProduct(item) || !form.reportValidity()) return;
       const existing = cart.find((line) => line.category === item.category && line.size === item.size
-        && line.toppings.join(',') === item.toppings.join(','));
+        && line.toppings.join(',') === item.toppings.join(',')
+        && JSON.stringify(line.extras ?? []) === JSON.stringify(item.extras ?? []));
 
       const previousQuantity = existing?.quantity ?? 0;
       const quantityAdded = Math.min(item.quantity, MAX_QUANTITY - previousQuantity);
@@ -357,9 +423,10 @@
           ${cart.map((item, index) => {
             const name = `${categories[item.category].title} de ${item.size} ml`;
             const names = itemToppings(item).map((topping) => topping.name).join(', ');
+            const extras = describeExtras(item);
             const issue = toppingIssues[index];
             const warning = issue === 'mixed'
-              ? 'Escolha um tipo de adicional por copo. Remova este item e monte novamente.'
+              ? 'Escolha um tipo de adicional na seleção principal. Remova este item e monte novamente.'
               : 'Este copo passou do limite de adicionais. Remova e monte novamente.';
 
             return `
@@ -367,6 +434,7 @@
                 <div class="cart-item-info">
                   <strong>${name}</strong>
                   ${names ? `<p class="cart-item-toppings">${names}</p>` : ''}
+                  ${extras ? `<p class="cart-item-toppings">Extras por copo: ${extras}</p>` : ''}
                   ${issue ? `<p class="cart-line-warning">${warning}</p>` : ''}
                 </div>
                 <strong>${formatPrice(lineTotal(item))}</strong>
@@ -455,8 +523,12 @@
     const lines = cart.flatMap((item) => {
       const name = `${categories[item.category].title} de ${item.size} ml`;
       const choices = itemToppings(item).map((topping) => topping.name).join(', ');
+      const extras = describeExtras(item);
       const line = `• ${item.quantity} × ${name} — ${formatPrice(lineTotal(item))}`;
-      return choices ? [line, `  Adicionais: ${choices}`] : [line];
+      const details = [line];
+      if (choices) details.push(`  Adicionais: ${choices}`);
+      if (extras) details.push(`  Extras por copo: ${extras}`);
+      return details;
     });
     message.push(
       '', '🛒 *ITENS DO PEDIDO:*', ...lines, '',
