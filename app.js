@@ -122,9 +122,14 @@
     };
   }
 
-  function exceedsToppingLimits(item) {
-    return item.category === 'mix'
-      && Object.values(toppingSelection(item)).some(({ count, limit }) => count > limit);
+  function toppingIssue({ free, paid }) {
+    if (free.count && paid.count) return 'mixed';
+    if (free.count > free.limit || paid.count > paid.limit) return 'limit';
+    return '';
+  }
+
+  function cartToppingIssue(item) {
+    return item.category === 'mix' ? toppingIssue(toppingSelection(item)) : '';
   }
 
   function lineTotal(item) {
@@ -234,24 +239,39 @@
       if (totalValue.textContent !== price) totalValue.textContent = price;
       if (category !== 'mix') return true;
 
-      const { free, paid } = toppingSelection(item);
-      const selection = { free, paid };
+      const selection = toppingSelection(item);
+      const { free, paid } = selection;
+      const issue = toppingIssue(selection);
       for (const { type, counter, options } of groups) {
         const { count, limit } = selection[type];
+        const other = type === 'free' ? paid : free;
         counter.textContent = `${count} de ${limit} selecionados`;
-        for (const option of options) option.disabled = !option.checked && count >= limit;
+        for (const option of options) {
+          option.disabled = !option.checked && (count >= limit || other.count > 0);
+        }
+      }
+
+      let hint = 'Escolha adicionais grátis ou pagos, um tipo por copo.';
+      if (free.count) {
+        hint = 'Desmarque os adicionais grátis para escolher os pagos.';
+      } else if (paid.count) {
+        hint = 'Desmarque os adicionais pagos para escolher os grátis.';
       }
 
       const warnings = [];
+      if (issue === 'mixed') {
+        warnings.push('Escolha um tipo de adicional. Desmarque todos os grátis ou todos os pagos.');
+      }
       if (free.count > free.limit) {
         warnings.push(`Desmarque adicionais grátis até ficar com ${free.limit} ou escolha um copo maior.`);
       }
       if (paid.count > paid.limit) {
         warnings.push(`Desmarque adicionais pagos até ficar com ${paid.limit}.`);
       }
-      const warning = warnings.join(' ');
-      if (limitMessage.textContent !== warning) limitMessage.textContent = warning;
-      addButton.disabled = Boolean(warning);
+      const message = warnings.length ? warnings.join(' ') : hint;
+      if (limitMessage.textContent !== message) limitMessage.textContent = message;
+      limitMessage.toggleAttribute('data-invalid', Boolean(issue));
+      addButton.disabled = Boolean(issue);
       return !addButton.disabled;
     }
 
@@ -328,7 +348,8 @@
     const previousForm = cartContent.querySelector('#checkout-form');
     if (previousForm) rememberCheckout(previousForm);
 
-    const invalidCart = cart.some(exceedsToppingLimits);
+    const toppingIssues = cart.map(cartToppingIssue);
+    const invalidCart = toppingIssues.some(Boolean);
     cartContent.innerHTML = `
       ${dialogHeader('cart-title', 'Sua sacola')}
       <div class="dialog-body">
@@ -336,13 +357,17 @@
           ${cart.map((item, index) => {
             const name = `${categories[item.category].title} de ${item.size} ml`;
             const names = itemToppings(item).map((topping) => topping.name).join(', ');
+            const issue = toppingIssues[index];
+            const warning = issue === 'mixed'
+              ? 'Escolha um tipo de adicional por copo. Remova este item e monte novamente.'
+              : 'Este copo passou do limite de adicionais. Remova e monte novamente.';
 
             return `
               <li class="cart-item">
                 <div class="cart-item-info">
                   <strong>${name}</strong>
                   ${names ? `<p class="cart-item-toppings">${names}</p>` : ''}
-                  ${exceedsToppingLimits(item) ? '<p class="cart-line-warning">Este copo passou do limite de adicionais. Remova e monte novamente.</p>' : ''}
+                  ${issue ? `<p class="cart-line-warning">${warning}</p>` : ''}
                 </div>
                 <strong>${formatPrice(lineTotal(item))}</strong>
                 <div class="cart-item-actions">
@@ -448,7 +473,7 @@
   }
 
   function validCheckout(form) {
-    if (cart.some(exceedsToppingLimits)) return false;
+    if (cart.some(cartToppingIssue)) return false;
     rememberCheckout(form);
     updateCheckout(form);
     for (const name of ['customerName', 'street', 'streetNumber', 'neighborhood']) {
