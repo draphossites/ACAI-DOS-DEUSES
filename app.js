@@ -6,6 +6,8 @@
   const DELIVERY_FEE_CENTS = 900;
   const STORAGE_KEY = 'acai-dos-deuses-cart-v1';
   const MAX_QUANTITY = 99;
+  const FREE_TOPPING_LIMITS = { 300: 3, 400: 4, 500: 5 };
+  const PAID_TOPPING_LIMIT = 2;
   const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
   const categories = {
@@ -110,6 +112,21 @@
     return toppings.filter((topping) => item.toppings.includes(topping.id));
   }
 
+  function toppingSelection(item) {
+    const selected = itemToppings(item);
+    const freeCount = selected.filter((topping) => topping.price === 0).length;
+
+    return {
+      free: { count: freeCount, limit: FREE_TOPPING_LIMITS[item.size] },
+      paid: { count: selected.length - freeCount, limit: PAID_TOPPING_LIMIT },
+    };
+  }
+
+  function exceedsToppingLimits(item) {
+    return item.category === 'mix'
+      && Object.values(toppingSelection(item)).some(({ count, limit }) => count > limit);
+  }
+
   function lineTotal(item) {
     const basePrice = categories[item.category].prices[item.size];
     const extras = itemToppings(item).reduce((price, topping) => price + topping.price, 0);
@@ -139,8 +156,8 @@
   function toppingOptions(paid) {
     const options = toppings.filter((topping) => paid ? topping.price > 0 : topping.price === 0);
     return `
-      <fieldset class="dialog-section">
-        <legend>${paid ? 'Adicionais pagos' : 'Adicionais grátis'}</legend>
+      <fieldset class="dialog-section" data-topping-group="${paid ? 'paid' : 'free'}">
+        <legend>${paid ? 'Adicionais pagos' : 'Adicionais grátis'} <span class="topping-counter" data-topping-counter></span></legend>
         <div class="dialog-options">
           ${options.map((topping) => `
             <label class="dialog-choice">
@@ -173,7 +190,10 @@
                 </label>`).join('')}
             </div>
           </fieldset>
-          ${category === 'mix' ? toppingOptions(false) + toppingOptions(true) : ''}
+          ${category === 'mix' ? `
+            <p class="topping-limit-message" data-topping-limit-message role="status" aria-live="polite" aria-atomic="true"></p>
+            ${toppingOptions(false) + toppingOptions(true)}
+          ` : ''}
         </div>
         <div class="dialog-footer">
           <div class="dialog-quantity">
@@ -181,7 +201,7 @@
             ${quantityStepper(quantity, product.title)}
           </div>
           <div class="dialog-total"><span>Subtotal</span><strong aria-live="polite" data-product-total>${formatPrice(product.prices[initialSize])}</strong></div>
-          <button class="dialog-action btn btn-primary" type="submit">Adicionar à sacola</button>
+          <button class="dialog-action btn btn-primary" type="submit" data-add-product>Adicionar à sacola</button>
         </div>
       </form>`;
 
@@ -190,14 +210,49 @@
     const decrement = form.querySelector('[data-quantity-change="-1"]');
     const increment = form.querySelector('[data-quantity-change="1"]');
     const totalValue = form.querySelector('[data-product-total]');
+    const addButton = form.querySelector('[data-add-product]');
+    const limitMessage = form.querySelector('[data-topping-limit-message]');
+    const sizeInput = form.elements.namedItem('size');
+    const groups = [...form.querySelectorAll('[data-topping-group]')].map((group) => ({
+      type: group.dataset.toppingGroup,
+      counter: group.querySelector('[data-topping-counter]'),
+      options: [...group.querySelectorAll('input[name="topping"]')],
+    }));
+    const toppingInputs = groups.flatMap((group) => group.options);
 
     function selectedItem() {
-      const data = new FormData(form);
-      return { category, quantity, size: Number(data.get('size')), toppings: data.getAll('topping') };
+      return {
+        category,
+        quantity,
+        size: Number(sizeInput.value),
+        toppings: toppingInputs.filter((input) => input.checked).map((input) => input.value),
+      };
     }
 
-    function updateProductTotal() {
-      totalValue.textContent = formatPrice(lineTotal(selectedItem()));
+    function updateProduct(item = selectedItem()) {
+      const price = formatPrice(lineTotal(item));
+      if (totalValue.textContent !== price) totalValue.textContent = price;
+      if (category !== 'mix') return true;
+
+      const { free, paid } = toppingSelection(item);
+      const selection = { free, paid };
+      for (const { type, counter, options } of groups) {
+        const { count, limit } = selection[type];
+        counter.textContent = `${count} de ${limit} selecionados`;
+        for (const option of options) option.disabled = !option.checked && count >= limit;
+      }
+
+      const warnings = [];
+      if (free.count > free.limit) {
+        warnings.push(`Desmarque adicionais grátis até ficar com ${free.limit} ou escolha um copo maior.`);
+      }
+      if (paid.count > paid.limit) {
+        warnings.push(`Desmarque adicionais pagos até ficar com ${paid.limit}.`);
+      }
+      const warning = warnings.join(' ');
+      if (limitMessage.textContent !== warning) limitMessage.textContent = warning;
+      addButton.disabled = Boolean(warning);
+      return !addButton.disabled;
     }
 
     function changeQuantity(amount) {
@@ -205,15 +260,16 @@
       quantityValue.value = String(quantity);
       decrement.disabled = quantity === 1;
       increment.disabled = quantity === MAX_QUANTITY;
-      updateProductTotal();
+      updateProduct();
     }
 
-    form.addEventListener('change', updateProductTotal);
+    form.addEventListener('change', () => updateProduct());
     decrement.addEventListener('click', () => changeQuantity(-1));
     increment.addEventListener('click', () => changeQuantity(1));
     form.addEventListener('submit', (event) => {
       event.preventDefault();
       const item = selectedItem();
+      if (!Object.hasOwn(product.prices, item.size) || !updateProduct(item)) return;
       const existing = cart.find((line) => line.category === item.category && line.size === item.size
         && line.toppings.join(',') === item.toppings.join(','));
 
@@ -232,6 +288,7 @@
       announce(quantityAdded > 0 ? message : 'Este copo já atingiu o limite de quantidade na sacola.');
     });
 
+    updateProduct();
     productDialog.showModal();
   }
 
@@ -271,6 +328,7 @@
     const previousForm = cartContent.querySelector('#checkout-form');
     if (previousForm) rememberCheckout(previousForm);
 
+    const invalidCart = cart.some(exceedsToppingLimits);
     cartContent.innerHTML = `
       ${dialogHeader('cart-title', 'Sua sacola')}
       <div class="dialog-body">
@@ -284,6 +342,7 @@
                 <div class="cart-item-info">
                   <strong>${name}</strong>
                   ${names ? `<p class="cart-item-toppings">${names}</p>` : ''}
+                  ${exceedsToppingLimits(item) ? '<p class="cart-line-warning">Este copo passou do limite de adicionais. Remova e monte novamente.</p>' : ''}
                 </div>
                 <strong>${formatPrice(lineTotal(item))}</strong>
                 <div class="cart-item-actions">
@@ -336,9 +395,10 @@
             <div class="dialog-total"><span>Taxa de entrega</span><strong data-checkout-fee></strong></div>
             <div class="dialog-total checkout-grand-total"><span>Total do pedido</span><strong data-checkout-total></strong></div>
           </div>
-          <button class="dialog-action btn btn-primary" type="submit">Enviar pedido pelo WhatsApp</button>
+          ${invalidCart ? '<p class="cart-checkout-warning">Remova os copos sinalizados para finalizar ou copiar o pedido.</p>' : ''}
+          <button class="dialog-action btn btn-primary" type="submit" ${invalidCart ? 'disabled' : ''}>Enviar pedido pelo WhatsApp</button>
           <p class="checkout-note order-note">Confira a mensagem pronta e confirme o envio no WhatsApp.</p>
-          <button class="dialog-secondary btn btn-secondary" type="button" data-copy-order>Copiar pedido</button>
+          <button class="dialog-secondary btn btn-secondary" type="button" data-copy-order ${invalidCart ? 'disabled' : ''}>Copiar pedido</button>
           <textarea class="order-summary" rows="4" aria-label="Resumo do pedido para copiar" data-copy-fallback readonly hidden></textarea>
           <p class="order-note" role="status" data-copy-status hidden></p>
         </div>
@@ -388,6 +448,7 @@
   }
 
   function validCheckout(form) {
+    if (cart.some(exceedsToppingLimits)) return false;
     rememberCheckout(form);
     updateCheckout(form);
     for (const name of ['customerName', 'street', 'streetNumber', 'neighborhood']) {
