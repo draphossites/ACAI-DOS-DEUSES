@@ -6,7 +6,9 @@
   const DELIVERY_FEE_CENTS = 900;
   const STORAGE_KEY = 'acai-dos-deuses-cart-v1';
   const MAX_QUANTITY = 99;
-  const INCLUDED_TOPPING_LIMITS = { 300: 3, 400: 4, 500: 5 };
+  const FREE_TOPPING_LIMITS = { 300: 3, 400: 4, 500: 5 };
+  const PAID_TOPPING_LIMIT = 2;
+  const TOPPING_PRICING_RULE = 'separate-extras-v1';
   const currency = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
 
   const categories = {
@@ -28,6 +30,7 @@
     { id: 'amendoim', name: 'Amendoim triturado', price: 200 },
   ];
   const toppingsById = new Map(toppings.map((topping) => [topping.id, topping]));
+  const paidToppings = toppings.filter((topping) => topping.price > 0);
 
   const productDialog = document.querySelector('#product-dialog');
   const productContent = document.querySelector('#product-content');
@@ -70,18 +73,24 @@
           ? item.toppings.filter((id) => toppingsById.has(id))
           : [];
         const extras = item.category === 'mix' && Array.isArray(item.extras)
-          ? item.extras.filter((extra) => toppingsById.get(extra?.id)?.price > 0
-            && Number.isInteger(extra.quantity) && extra.quantity > 0)
+          ? paidToppings.flatMap(({ id }) => {
+            const savedExtra = item.extras.find((extra) => extra?.id === id
+              && Number.isInteger(extra.quantity) && extra.quantity > 0);
+            return savedExtra ? [{ id, quantity: Math.min(savedExtra.quantity, MAX_QUANTITY) }] : [];
+          })
           : [];
-        const combined = selected.concat(extras.map(({ id }) => id));
-        const hasRepeatedExtras = extras.some(({ quantity }) => quantity > 1)
-          || new Set(combined).size < combined.length;
+        // Sem a identificação da regra, uma escolha paga pode ter sido incluída na
+        // cota de uma versão anterior. Preserve o item, mas peça para remontá-lo.
+        const pricingRule = item.pricingRule === TOPPING_PRICING_RULE
+          || extras.length || !selected.some((id) => toppingsById.get(id).price > 0)
+          ? TOPPING_PRICING_RULE : 'review';
 
         return [{
           category: item.category,
           size: Number(item.size),
-          toppings: hasRepeatedExtras ? selected : combined,
-          ...(extras.length && hasRepeatedExtras ? { extras } : {}),
+          toppings: selected,
+          ...(item.category === 'mix' ? { pricingRule } : {}),
+          ...(extras.length ? { extras } : {}),
           quantity: Math.min(item.quantity, MAX_QUANTITY),
         }];
       });
@@ -117,37 +126,54 @@
   }
 
   function itemToppings(item) {
-    const limit = INCLUDED_TOPPING_LIMITS[item.size];
-    return item.toppings.map((id, index) => ({
+    return item.toppings.map((id) => toppingsById.get(id));
+  }
+
+  function itemExtras(item) {
+    return (item.extras ?? []).map(({ id, quantity }) => ({
       ...toppingsById.get(id),
-      included: index < limit,
+      quantity,
     }));
   }
 
-  function cartToppingIssue(item) {
-    if (item.extras?.length || new Set(item.toppings).size < item.toppings.length) return 'repeated';
-    return itemToppings(item).some(({ included, price }) => !included && price === 0) ? 'unpriced' : '';
+  function extraToppingsTotal(item) {
+    return itemExtras(item).reduce((total, { price, quantity }) => total + price * quantity, 0);
   }
 
-  function describeToppings(item) {
-    const picked = itemToppings(item);
-    const included = picked.filter((topping) => topping.included).map(({ name }) => name);
-    const charged = picked.filter((topping) => !topping.included && topping.price > 0)
-      .map(({ name, price }) => `${name} (+ ${formatPrice(price)})`);
-    const unavailable = picked.filter((topping) => !topping.included && topping.price === 0).map(({ name }) => name);
-    const oldExtras = (item.extras ?? []).map(({ id, quantity }) => `${quantity} × ${toppingsById.get(id).name}`);
-    return [
-      included.length ? `Incluídos por copo: ${included.join(', ')}` : '',
-      charged.length ? `Cobrados por copo: ${charged.join(', ')}` : '',
-      unavailable.length ? `Fora da cota: ${unavailable.join(', ')}` : '',
-      oldExtras.length ? `Porções extras antigas: ${oldExtras.join(', ')}` : '',
-    ].filter(Boolean);
+  function describeExtras(item) {
+    return itemExtras(item)
+      .map(({ name, price, quantity }) => `${quantity} × ${name} (+ ${formatPrice(price * quantity)})`)
+      .join(', ');
+  }
+
+  function toppingSelection(item) {
+    const selected = itemToppings(item);
+    const freeCount = selected.filter((topping) => topping.price === 0).length;
+
+    return {
+      free: { count: freeCount, limit: FREE_TOPPING_LIMITS[item.size] },
+      paid: { count: selected.length - freeCount, limit: PAID_TOPPING_LIMIT },
+    };
+  }
+
+  function toppingIssue({ free, paid }) {
+    if (free.count && paid.count) return 'mixed';
+    if (free.count > free.limit || paid.count > paid.limit) return 'limit';
+    return '';
+  }
+
+  function cartToppingIssue(item) {
+    if (item.category !== 'mix') return '';
+    if (new Set(item.toppings).size < item.toppings.length) return 'repeated';
+    return toppingIssue(toppingSelection(item)) || (item.pricingRule === 'review' ? 'price' : '');
   }
 
   function lineTotal(item) {
     const basePrice = categories[item.category].prices[item.size];
-    const chargedToppings = itemToppings(item).reduce((total, topping) => total + (topping.included ? 0 : topping.price), 0);
-    return (basePrice + chargedToppings) * item.quantity;
+    const selected = itemToppings(item);
+    const charged = item.pricingRule === 'review' ? selected.slice(FREE_TOPPING_LIMITS[item.size]) : selected;
+    const selectedToppingPrice = charged.reduce((total, topping) => total + topping.price, 0);
+    return (basePrice + selectedToppingPrice + extraToppingsTotal(item)) * item.quantity;
   }
 
   function dialogHeader(id, title, description) {
@@ -170,20 +196,39 @@
       </div>`;
   }
 
-  function toppingOptions() {
+  function toppingOptions(paid) {
+    const options = paid ? paidToppings : toppings.filter((topping) => topping.price === 0);
     return `
-      <fieldset class="dialog-section">
-        <legend>Adicionais <span class="topping-counter" data-topping-counter></span></legend>
-        <p class="topping-limit-message" data-topping-limit-message role="status" aria-live="polite" aria-atomic="true"></p>
-        <div class="dialog-options topping-selection-list">
-          ${toppings.map((topping) => `
+      <fieldset class="dialog-section" data-topping-group="${paid ? 'paid' : 'free'}">
+        <legend>${paid ? 'Adicionais pagos' : 'Adicionais grátis'} <span class="topping-counter" data-topping-counter></span></legend>
+        <div class="dialog-options">
+          ${options.map((topping) => `
             <label class="dialog-choice">
               <input type="checkbox" name="topping" value="${topping.id}">
               <span>${topping.name}</span>
-              <span class="dialog-choice-price topping-choice-price" data-topping-price></span>
+              ${paid ? `<span class="dialog-choice-price">+ ${formatPrice(topping.price)}</span>` : ''}
             </label>`).join('')}
         </div>
       </fieldset>`;
+  }
+
+  function paidExtraOptions() {
+    return `
+      <details class="paid-extras">
+        <summary>Extras pagos</summary>
+        <fieldset class="dialog-section" aria-label="Porções extras pagas">
+          <p class="paid-extras-note">Escolha quantas porções extras quer em cada copo. O preço é por porção.</p>
+          <div class="paid-extra-list">
+            ${paidToppings.map(({ id, name, price }) => `
+              <label class="paid-extra-row">
+                <span>${name}</span>
+                <span class="paid-extra-price">+ ${formatPrice(price)}</span>
+                <input class="paid-extra-quantity" type="number" min="0" max="${MAX_QUANTITY}" step="1" value="0" inputmode="numeric" data-extra-topping="${id}" aria-label="Porções extras de ${name} por copo">
+              </label>`).join('')}
+          </div>
+          <p class="paid-extras-subtotal">Extras por copo <strong data-paid-extra-total>${formatPrice(0)}</strong></p>
+        </fieldset>
+      </details>`;
   }
 
   function openProduct(key) {
@@ -191,7 +236,6 @@
     const product = categories[category];
     if (!product || !Object.hasOwn(product.prices, initialSize)) return;
     let quantity = 1;
-    let toppingOrder = [];
 
     productContent.innerHTML = `
       ${dialogHeader('product-title', product.title, category === 'mix' ? 'Escolha o tamanho e monte do seu jeito.' : 'Escolha o tamanho do seu copo.')}
@@ -208,7 +252,11 @@
                 </label>`).join('')}
             </div>
           </fieldset>
-          ${category === 'mix' ? toppingOptions() : ''}
+          ${category === 'mix' ? `
+            <p class="topping-limit-message" data-topping-limit-message role="status" aria-live="polite" aria-atomic="true"></p>
+            ${toppingOptions(false) + toppingOptions(true)}
+            ${paidExtraOptions()}
+          ` : ''}
         </div>
         <div class="dialog-footer">
           <div class="dialog-quantity">
@@ -227,24 +275,32 @@
     const totalValue = form.querySelector('[data-product-total]');
     const addButton = form.querySelector('[data-add-product]');
     const limitMessage = form.querySelector('[data-topping-limit-message]');
-    const toppingCounter = form.querySelector('[data-topping-counter]');
     const sizeInput = form.elements.namedItem('size');
-    const toppingChoices = [...form.querySelectorAll('input[name="topping"]')].map((input) => ({
-      input,
-      topping: toppingsById.get(input.value),
-      status: input.parentElement.querySelector('[data-topping-price]'),
+    const extraDetails = form.querySelector('.paid-extras');
+    const extraTotal = form.querySelector('[data-paid-extra-total]');
+    const extraInputs = [...form.querySelectorAll('[data-extra-topping]')];
+    const groups = [...form.querySelectorAll('[data-topping-group]')].map((group) => ({
+      type: group.dataset.toppingGroup,
+      counter: group.querySelector('[data-topping-counter]'),
+      options: [...group.querySelectorAll('input[name="topping"]')],
     }));
+    const toppingInputs = groups.flatMap((group) => group.options);
 
     function selectedItem() {
-      const checked = toppingChoices.filter(({ input }) => input.checked).map(({ topping }) => topping.id);
-      toppingOrder = toppingOrder.filter((id) => checked.includes(id));
-      toppingOrder.push(...checked.filter((id) => !toppingOrder.includes(id)));
+      const extras = extraInputs.flatMap((input) => {
+        const amount = input.valueAsNumber;
+        return Number.isInteger(amount) && amount > 0 && amount <= MAX_QUANTITY
+          ? [{ id: input.dataset.extraTopping, quantity: amount }]
+          : [];
+      });
 
       return {
         category,
         quantity,
         size: Number(sizeInput.value),
-        toppings: toppingOrder,
+        toppings: toppingInputs.filter((input) => input.checked).map((input) => input.value),
+        ...(category === 'mix' ? { pricingRule: TOPPING_PRICING_RULE } : {}),
+        ...(extras.length ? { extras } : {}),
       };
     }
 
@@ -253,22 +309,38 @@
       if (totalValue.textContent !== price) totalValue.textContent = price;
       if (category !== 'mix') return true;
 
-      const limit = INCLUDED_TOPPING_LIMITS[item.size];
-      const remaining = Math.max(0, limit - item.toppings.length);
-      toppingCounter.textContent = `${limit - remaining} de ${limit} incluídos`;
-      for (const { input, topping, status } of toppingChoices) {
-        const selectedIndex = item.toppings.indexOf(topping.id);
-        const included = input.checked ? selectedIndex < limit : remaining > 0;
-        input.disabled = !input.checked && !included && topping.price === 0;
-        status.textContent = included
-          ? 'Incluído'
-          : topping.price ? `+ ${formatPrice(topping.price)}` : 'Só na cota';
+      extraTotal.textContent = formatPrice(extraToppingsTotal(item));
+      const selection = toppingSelection(item);
+      const { free, paid } = selection;
+      const issue = toppingIssue(selection);
+      for (const { type, counter, options } of groups) {
+        const { count, limit } = selection[type];
+        const other = type === 'free' ? paid : free;
+        counter.textContent = `${count} de ${limit} selecionados`;
+        for (const option of options) {
+          option.disabled = !option.checked && (count >= limit || other.count > 0);
+        }
       }
 
-      const issue = cartToppingIssue(item);
-      const message = issue
-        ? 'Há adicionais sem preço fora da cota. Desmarque uma opção ou escolha um copo maior.'
-        : `Os primeiros ${limit} adicionais são incluídos. Depois da cota, valem os preços do cardápio.`;
+      let hint = 'Na seleção principal, escolha adicionais grátis ou pagos.';
+      if (free.count) {
+        hint = 'Desmarque os adicionais grátis para escolher os pagos.';
+      } else if (paid.count) {
+        hint = 'Desmarque os adicionais pagos para escolher os grátis.';
+      }
+      hint += ' Use Extras pagos para acrescentar porções.';
+
+      const warnings = [];
+      if (issue === 'mixed') {
+        warnings.push('Escolha um tipo na seleção principal. Desmarque todos os grátis ou todos os pagos.');
+      }
+      if (free.count > free.limit) {
+        warnings.push(`Desmarque adicionais grátis até ficar com ${free.limit} ou escolha um copo maior.`);
+      }
+      if (paid.count > paid.limit) {
+        warnings.push(`Desmarque adicionais pagos até ficar com ${paid.limit}.`);
+      }
+      const message = warnings.length ? warnings.join(' ') : hint;
       if (limitMessage.textContent !== message) limitMessage.textContent = message;
       limitMessage.toggleAttribute('data-invalid', Boolean(issue));
       addButton.disabled = Boolean(issue);
@@ -284,14 +356,22 @@
     }
 
     form.addEventListener('change', () => updateProduct());
+    form.addEventListener('input', (event) => {
+      if (event.target.hasAttribute('data-extra-topping')) updateProduct();
+    });
+    form.addEventListener('invalid', (event) => {
+      if (event.target.hasAttribute('data-extra-topping')) extraDetails.open = true;
+    }, true);
     decrement.addEventListener('click', () => changeQuantity(-1));
     increment.addEventListener('click', () => changeQuantity(1));
     form.addEventListener('submit', (event) => {
       event.preventDefault();
       const item = selectedItem();
-      if (!Object.hasOwn(product.prices, item.size) || !updateProduct(item)) return;
+      if (!Object.hasOwn(product.prices, item.size) || !updateProduct(item) || !form.reportValidity()) return;
       const existing = cart.find((line) => line.category === item.category && line.size === item.size
-        && !line.extras?.length && line.toppings.join(',') === item.toppings.join(','));
+        && line.pricingRule === item.pricingRule && line.toppings.length === item.toppings.length
+        && item.toppings.every((id) => line.toppings.includes(id))
+        && JSON.stringify(line.extras ?? []) === JSON.stringify(item.extras ?? []));
 
       const previousQuantity = existing?.quantity ?? 0;
       const quantityAdded = Math.min(item.quantity, MAX_QUANTITY - previousQuantity);
@@ -350,24 +430,29 @@
 
     const toppingIssues = cart.map(cartToppingIssue);
     const invalidCart = toppingIssues.some(Boolean);
+    const toppingWarnings = {
+      mixed: 'Este copo mistura grátis e pagos na seleção principal. Remova e monte novamente.',
+      limit: 'Este copo passou do limite de adicionais na seleção principal. Remova e monte novamente.',
+      repeated: 'Este copo repete um adicional na seleção principal. Remova e monte novamente.',
+      price: 'Este copo foi montado com outra regra de preços. Remova e monte novamente para conferir o valor.',
+    };
     cartContent.innerHTML = `
       ${dialogHeader('cart-title', 'Sua sacola')}
       <div class="dialog-body">
         <ul class="cart-items">
           ${cart.map((item, index) => {
             const name = `${categories[item.category].title} de ${item.size} ml`;
-            const details = describeToppings(item);
-            const issue = toppingIssues[index];
-            const warning = issue === 'repeated'
-              ? 'Este copo tem porções repetidas. Remova e monte novamente com uma porção de cada adicional.'
-              : 'Este copo tem adicionais sem preço fora da cota. Remova e monte novamente.';
+            const names = itemToppings(item).map((topping) => topping.name).join(', ');
+            const extras = describeExtras(item);
+            const warning = toppingWarnings[toppingIssues[index]];
 
             return `
               <li class="cart-item">
                 <div class="cart-item-info">
                   <strong>${name}</strong>
-                  ${details.map((detail) => `<p class="cart-item-toppings">${detail}</p>`).join('')}
-                  ${issue ? `<p class="cart-line-warning">${warning}</p>` : ''}
+                  ${names ? `<p class="cart-item-toppings">${names}</p>` : ''}
+                  ${extras ? `<p class="cart-item-toppings">Extras por copo: ${extras}</p>` : ''}
+                  ${warning ? `<p class="cart-line-warning">${warning}</p>` : ''}
                 </div>
                 <strong>${formatPrice(lineTotal(item))}</strong>
                 <div class="cart-item-actions">
@@ -454,8 +539,13 @@
 
     const lines = cart.flatMap((item) => {
       const name = `${categories[item.category].title} de ${item.size} ml`;
+      const choices = itemToppings(item).map((topping) => topping.name).join(', ');
+      const extras = describeExtras(item);
       const line = `• ${item.quantity} × ${name} — ${formatPrice(lineTotal(item))}`;
-      return [line, ...describeToppings(item).map((detail) => `  ${detail}`)];
+      const details = [line];
+      if (choices) details.push(`  Adicionais: ${choices}`);
+      if (extras) details.push(`  Extras por copo: ${extras}`);
+      return details;
     });
     message.push(
       '', '🛒 *ITENS DO PEDIDO:*', ...lines, '',
