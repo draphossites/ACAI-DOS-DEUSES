@@ -17,7 +17,7 @@
   };
   const toppings = [
     { id: 'condensado', name: 'Leite condensado', price: 0 },
-    { id: 'leite-em-po', name: 'Leite em pó', price: 0 },
+    { id: 'leite-em-po', name: 'Leite Ninho em pó', price: 0 },
     { id: 'granola', name: 'Granola', price: 0 },
     { id: 'pacoca', name: 'Paçoca', price: 0 },
     { id: 'banana', name: 'Banana', price: 0 },
@@ -29,10 +29,24 @@
     { id: 'ovomaltine', name: 'Ovomaltine', price: 300 },
     { id: 'amendoim', name: 'Amendoim triturado', price: 200 },
   ];
+  const toppingIcons = ['🥛', '🥄', '🌾', '🥜', '🍌', '🍓', '🍫', '🍮', '🥄', '🌰', '🍫', '🥜'];
+  const toppingLayerColors = ['#f5e0ac', '#f0d9bc', '#c88431', '#bd874d', '#f3ce60', '#e74d67',
+    '#57292a', '#ad735d', '#fff1cc', '#843d26', '#9b5e36', '#dfaa5e'];
+  const formatTitles = { cup: 'Copo de açaí', bottle: 'Garrafa de açaí', boat: 'Barca de açaí' };
+  const enquirySizes = {
+    bottle: [
+      { id: '300', label: '300 ml' },
+      { id: '500', label: '500 ml' },
+    ],
+    boat: [
+      { id: 'pequena', label: 'Pequena', detail: '1 a 2 pessoas', estimate: 'R$ 25 a R$ 60' },
+      { id: 'media', label: 'Média', detail: '1 a 1,5 kg · 3 a 4 pessoas', estimate: 'R$ 50 a R$ 90' },
+      { id: 'grande', label: 'Grande / Família', detail: '2 kg ou mais · 5 ou mais pessoas', estimate: 'R$ 75 a R$ 135' },
+    ],
+  };
   const toppingsById = new Map(toppings.map((topping) => [topping.id, topping]));
   const paidToppings = toppings.filter((topping) => topping.price > 0);
 
-  const productDialog = document.querySelector('#product-dialog');
   const productContent = document.querySelector('#product-content');
   const cartDialog = document.querySelector('#cart-dialog');
   const cartContent = document.querySelector('#cart-content');
@@ -41,8 +55,20 @@
   const floatingCart = document.querySelector('[data-floating-cart]');
   let cartOpener;
   const siteStatus = document.querySelector('#site-status');
-  const filterButtons = document.querySelectorAll('[data-filter]');
-  const productCards = document.querySelectorAll('[data-category]');
+  const formatButtons = [...document.querySelectorAll('[data-format]')];
+  const variantButtons = [...document.querySelectorAll('[data-product]')];
+  const cupVariants = document.querySelector('.builder-variants');
+  const stage = document.querySelector('.builder-stage');
+  const stageTitle = document.querySelector('[data-stage-title]');
+  const stageToppings = document.querySelector('[data-stage-toppings]');
+  const ingredientLayer = document.querySelector('[data-stage-ingredients]');
+  const ingredientSheet = document.querySelector('[data-ingredient-sheet]');
+  const textureSheet = document.querySelector('[data-texture-sheet]');
+  const cupGarnish = document.querySelector('[data-cup-garnish]');
+  const cupPowder = document.querySelector('[data-cup-powder]');
+  const stagePhotos = document.querySelectorAll('[data-format-photo]');
+  const placedToppings = new Map();
+  let cupVariant = 'mix-300';
   let cart = loadCart();
   const checkoutDraft = {
     customerName: '',
@@ -201,15 +227,60 @@
     return `
       <fieldset class="dialog-section" data-topping-group="${paid ? 'paid' : 'free'}">
         <legend>${paid ? 'Adicionais pagos' : 'Adicionais grátis'} <span class="topping-counter" data-topping-counter></span></legend>
-        <div class="dialog-options">
-          ${options.map((topping) => `
-            <label class="dialog-choice">
-              <input type="checkbox" name="topping" value="${topping.id}">
-              <span>${topping.name}</span>
-              ${paid ? `<span class="dialog-choice-price">+ ${formatPrice(topping.price)}</span>` : ''}
-            </label>`).join('')}
+        <div class="builder-toppings">
+          ${options.map(toppingTile).join('')}
         </div>
       </fieldset>`;
+  }
+
+  function toppingTile(topping) {
+    const icon = toppingIcons[toppings.indexOf(topping)];
+    const price = `${topping.price > 0 ? '+ ' : ''}${formatPrice(topping.price)}`;
+    return `
+      <label class="builder-topping">
+        <input type="checkbox" name="topping" value="${topping.id}">
+        <span class="builder-topping-icon" aria-hidden="true">${icon}</span>
+        <span class="builder-topping-name">${topping.name}</span>
+        <span class="builder-topping-price">${price}</span>
+      </label>`;
+  }
+
+  function previewToppings(selectedIds, lastToppingId) {
+    const selected = new Set(selectedIds);
+    const layered = stage.dataset.stageFormat !== 'boat';
+    for (const [id, image] of placedToppings) {
+      if (selected.has(id)) continue;
+      image.remove();
+      placedToppings.delete(id);
+    }
+    for (const id of selected) {
+      if (placedToppings.has(id)) continue;
+      const index = toppings.indexOf(toppingsById.get(id));
+      const image = document.createElement('span');
+      image.className = 'builder-ingredient';
+      image.style.setProperty('--layer-color', toppingLayerColors[index]);
+      image.style.setProperty('--layer-texture-position', `${(index % 4) * 100 / 3}% ${Math.floor(index / 4) * 100 / 3}%`);
+      if (layered) {
+        image.innerHTML = '<span class="builder-layer-fill"></span><span class="builder-layer-fill builder-layer-topping"></span>';
+      }
+      ingredientLayer.append(image);
+      placedToppings.set(id, image);
+    }
+    ingredientLayer.style.setProperty('--layer-count', Math.max(1, selected.size));
+    const customCup = stage.dataset.stagePhoto === 'cup';
+    const isPowder = lastToppingId === 'leite-em-po';
+    cupPowder.hidden = !customCup || !isPowder;
+    cupGarnish.hidden = !customCup || !lastToppingId || isPowder;
+    if (!cupGarnish.hidden) {
+      const last = toppings.indexOf(toppingsById.get(lastToppingId));
+      cupGarnish.style.setProperty('--garnish-position', `${(last % 4) * 100 / 3}% ${Math.floor(last / 4) * 50}%`);
+    }
+    const names = [...placedToppings.keys()].flatMap((id) => {
+      const name = toppingsById.get(id).name;
+      return layered ? ['Açaí', name] : [name];
+    }).join(' · ');
+    stageToppings.textContent = layered && selected.size ? `De baixo para cima: ${names}` : names;
+    stageToppings.hidden = selected.size === 0;
   }
 
   function paidExtraOptions() {
@@ -238,7 +309,7 @@
     let quantity = 1;
 
     productContent.innerHTML = `
-      ${dialogHeader('product-title', product.title, category === 'mix' ? 'Escolha o tamanho e monte do seu jeito.' : 'Escolha o tamanho do seu copo.')}
+      <h2 class="builder-product-title" id="product-title">${product.title}</h2>
       <form id="product-form">
         <div class="dialog-body">
           <fieldset class="dialog-section">
@@ -263,8 +334,9 @@
             <span>Quantidade</span>
             ${quantityStepper(quantity, product.title)}
           </div>
-          <div class="dialog-total"><span>Subtotal</span><strong aria-live="polite" data-product-total>${formatPrice(product.prices[initialSize])}</strong></div>
-          <button class="dialog-action btn btn-primary" type="submit" data-add-product>Adicionar à sacola</button>
+          <button class="dialog-action btn btn-primary builder-add" type="submit" data-add-product>
+            <span>Adicionar à sacola</span><strong aria-live="polite" data-product-total>${formatPrice(product.prices[initialSize])}</strong>
+          </button>
         </div>
       </form>`;
 
@@ -285,6 +357,7 @@
       options: [...group.querySelectorAll('input[name="topping"]')],
     }));
     const toppingInputs = groups.flatMap((group) => group.options);
+    const toppingOrder = new Map();
 
     function selectedItem() {
       const extras = extraInputs.flatMap((input) => {
@@ -307,6 +380,20 @@
     function updateProduct(item = selectedItem()) {
       const price = formatPrice(lineTotal(item));
       if (totalValue.textContent !== price) totalValue.textContent = price;
+      const extras = item.extras ?? [];
+      const choices = new Map([
+        ...item.toppings.map((id) => [id, { id, quantity: 1 }]),
+        ...extras.map((extra) => [`extra:${extra.id}`, extra]),
+      ]);
+      for (const key of toppingOrder.keys()) {
+        if (!choices.has(key)) toppingOrder.delete(key);
+      }
+      for (const [key, choice] of choices) {
+        if (choice.quantity > (toppingOrder.get(key)?.quantity ?? 0)) toppingOrder.delete(key);
+        toppingOrder.set(key, choice);
+      }
+      const lastToppingId = Array.from(toppingOrder.values()).at(-1)?.id;
+      previewToppings([...item.toppings, ...extras.map(({ id }) => id)], lastToppingId);
       if (category !== 'mix') return true;
 
       extraTotal.textContent = formatPrice(extraToppingsTotal(item));
@@ -383,13 +470,86 @@
       }
 
       saveCart();
-      productDialog.close();
       const message = quantityAdded === 1 ? '1 item adicionado à sacola.' : `${quantityAdded} itens adicionados à sacola.`;
       announce(quantityAdded > 0 ? message : 'Este copo já atingiu o limite de quantidade na sacola.');
     });
 
     updateProduct();
-    productDialog.showModal();
+  }
+
+  function renderPurchaseEnquiry(format) {
+    const title = formatTitles[format];
+    const sizes = enquirySizes[format];
+    const note = format === 'boat'
+      ? 'As faixas abaixo são estimativas. Confirme o valor da sua barca pelo WhatsApp.'
+      : 'Escolha o tamanho da garrafa e consulte o preço pelo WhatsApp.';
+    productContent.innerHTML = `
+      <h2 class="builder-product-title" id="product-title">${title}</h2>
+      <p class="builder-quote-note">${note}</p>
+      <form id="product-form">
+        <div class="dialog-body">
+          <fieldset class="dialog-section">
+            <legend>Tamanho</legend>
+            <div class="dialog-options ${format === 'boat' ? 'builder-boat-sizes' : ''}">
+              ${sizes.map(({ id, label, detail, estimate }, index) => `
+                <label class="dialog-choice">
+                  <input type="radio" name="size" value="${id}" ${index === 0 ? 'checked' : ''} required>
+                  <span><strong>${label}</strong>${detail ? `<small class="builder-size-detail">${detail}</small>` : ''}</span>
+                  ${estimate ? `<span class="dialog-choice-price">${estimate}</span>` : ''}
+                </label>`).join('')}
+            </div>
+          </fieldset>
+          <fieldset class="dialog-section">
+            <legend>Adicionais de sua preferência</legend>
+            <div class="builder-toppings">${toppings.map(toppingTile).join('')}</div>
+          </fieldset>
+        </div>
+        <div class="dialog-footer">
+          <button class="dialog-action btn btn-primary builder-add" type="submit"><span>Consultar pelo WhatsApp</span><strong>Sob consulta</strong></button>
+        </div>
+      </form>`;
+
+    const form = productContent.querySelector('form');
+    const selectedIds = () => [...form.querySelectorAll('input[name="topping"]:checked')].map((input) => input.value);
+    const selectedSize = () => sizes.find(({ id }) => id === form.elements.namedItem('size').value);
+    const updateStageTitle = () => {
+      const size = selectedSize();
+      stageTitle.textContent = size ? `${title} · ${size.label}` : title;
+    };
+    updateStageTitle();
+    form.addEventListener('change', (event) => {
+      if (event.target.name === 'size') {
+        updateStageTitle();
+      } else {
+        previewToppings(selectedIds());
+      }
+    });
+    form.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const size = selectedSize();
+      if (!size) return;
+      const selected = selectedIds().map((id) => toppingsById.get(id).name);
+      const message = [`Olá! Gostaria de consultar o preço de ${title} (${size.label}).`];
+      if (selected.length) message.push(`Adicionais de preferência: ${selected.join(', ')}.`);
+      window.location.href = `https://wa.me/${STORE_WHATSAPP}?text=${encodeURIComponent(message.join('\n'))}`;
+    });
+  }
+
+  function selectFormat(format) {
+    formatButtons.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.format === format)));
+    cupVariants.hidden = format !== 'cup';
+    previewToppings([]);
+    const photo = format === 'cup' && cupVariant.startsWith('pure-') ? 'pure' : format;
+    stage.dataset.stageFormat = format;
+    stage.dataset.stagePhoto = photo;
+    stageTitle.textContent = photo === 'pure' ? 'Copo de açaí puro' : formatTitles[format];
+    stagePhotos.forEach((image) => { image.hidden = image.dataset.formatPhoto !== photo; });
+    if (format === 'cup') {
+      variantButtons.forEach((button) => button.setAttribute('aria-pressed', String(button.dataset.product === cupVariant)));
+      openProduct(cupVariant);
+    } else {
+      renderPurchaseEnquiry(format);
+    }
   }
 
   function orderTotals(fulfillment) {
@@ -420,7 +580,7 @@
         ${dialogHeader('cart-title', 'Sua sacola')}
         <div class="dialog-body cart-empty">
           <p>Sua sacola está vazia.</p>
-          <a class="dialog-action btn btn-primary" href="#cardapio" data-close-dialog>Ver cardápio</a>
+          <a class="dialog-action btn btn-primary" href="#montar" data-close-dialog>Montar meu açaí</a>
         </div>`;
       return;
     }
@@ -590,8 +750,17 @@
     status.hidden = false;
   }
 
-  document.querySelectorAll('[data-product]').forEach((button) => {
-    button.addEventListener('click', () => openProduct(button.dataset.product));
+  formatButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      if (button.getAttribute('aria-pressed') !== 'true') selectFormat(button.dataset.format);
+    });
+  });
+  variantButtons.forEach((button) => {
+    button.addEventListener('click', () => {
+      if (button.dataset.product === cupVariant) return;
+      cupVariant = button.dataset.product;
+      selectFormat('cup');
+    });
   });
 
   cartButtons.forEach((button) => {
@@ -608,10 +777,8 @@
     }
   });
 
-  [productDialog, cartDialog].forEach((dialog) => {
-    dialog.addEventListener('click', (event) => {
-      if (event.target === dialog || event.target.closest('[data-close-dialog]')) dialog.close();
-    });
+  cartDialog.addEventListener('click', (event) => {
+    if (event.target === cartDialog || event.target.closest('[data-close-dialog]')) cartDialog.close();
   });
 
   cartContent.addEventListener('change', (event) => {
@@ -671,23 +838,12 @@
     }
   });
 
-  filterButtons.forEach((button) => {
-    button.addEventListener('click', () => {
-      const category = button.dataset.filter;
-      filterButtons.forEach((filter) => {
-        const active = filter === button;
-        filter.setAttribute('aria-pressed', String(active));
-        filter.classList.toggle('is-active', active);
-      });
-      productCards.forEach((card) => {
-        card.hidden = category !== 'all' && card.dataset.category !== category;
-      });
-    });
-  });
-
   const storeContact = document.querySelector('[data-store-contact]');
   storeContact.href = `https://wa.me/${STORE_WHATSAPP}`;
   storeContact.textContent = STORE_WHATSAPP.replace(/^55(\d{2})(\d{5})(\d{4})$/, '($1) $2-$3');
   document.querySelector('[data-delivery-price]').textContent = formatPrice(DELIVERY_FEE_CENTS);
+  stage.style.setProperty('--topping-sheet', `url("${ingredientSheet.src}")`);
+  ingredientLayer.style.setProperty('--texture-sheet', `url("${textureSheet.src}")`);
+  selectFormat('cup');
   updateCartCount();
 })();

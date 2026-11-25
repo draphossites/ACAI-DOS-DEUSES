@@ -2,10 +2,10 @@
 <html lang="pt-BR">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#300020">
-  <meta name="description" content="Confira o cardápio do Açaí dos Deuses, monte seu copo e prepare seu pedido.">
-  <title>Açaí dos Deuses | Cardápio e pedidos</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#210d2d">
+  <meta name="description" content="Monte seu açaí no copo, na garrafa ou na barca e peça pelo WhatsApp.">
+  <title>Açaí dos Deuses | Monte seu açaí</title>
   <link rel="icon" type="image/png" href="img/logo-acai.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -13,215 +13,84 @@
   <link rel="stylesheet" href="styles.css">
   <script src="app.js" defer></script>
 </head>
-<body>
-  <a class="skip-link" href="#cardapio">Ir para o cardápio</a>
-  <header class="site-header" id="inicio">
-    <div class="container header-inner">
+<body class="builder-page">
+  <a class="skip-link" href="#montar">Ir para a montagem</a>
+  <header class="builder-header" id="inicio">
+    <div class="builder-shell builder-header-inner">
       <a class="brand" href="#inicio">
         <img src="img/logo-acai.png" alt="" width="525" height="514">
         <span>Açaí dos Deuses</span>
       </a>
-      <nav class="main-nav" aria-label="Principal">
-        <a href="#cardapio">Cardápio</a>
-        <a href="#adicionais">Adicionais</a>
-        <a href="#como-pedir">Como pedir</a>
-      </nav>
-      <button class="cart-button" type="button" data-open-cart aria-haspopup="dialog">
+      <a class="builder-header-link" href="#recebimento">Entrega e retirada</a>
+      <button class="cart-button" type="button" data-open-cart aria-haspopup="dialog" aria-controls="cart-dialog">
         <span class="bag-icon" aria-hidden="true"></span>
-        <span class="cart-button-label">Meu pedido</span>
+        <span>Minha sacola</span>
         <span class="cart-count" data-cart-count>0</span>
       </button>
     </div>
   </header>
 
-  <main>
-    <section class="hero" aria-labelledby="hero-title">
-      <div class="container hero-inner">
-        <div class="hero-copy">
-          <p class="hero-kicker">TRÊS TAMANHOS PARA ESCOLHER</p>
-          <h1 id="hero-title">Açaí dos<br><em>Deuses.</em></h1>
-          <p class="hero-description">Vai de açaí puro ou monta seu copo com os adicionais que você mais gosta.</p>
-          <div class="hero-actions">
-            <a class="btn btn-yellow" href="#cardapio">Montar meu pedido</a>
-            <a class="order-info-link" href="#como-pedir">Entrega e retirada</a>
+  <main id="montar" class="builder-shell builder-main">
+    <header class="builder-title">
+      <h1>Monte seu <em>açaí.</em></h1>
+      <p>Escolha como servir e toque nos seus adicionais favoritos.</p>
+    </header>
+
+    <div class="builder-formats" role="group" aria-label="Formato do açaí">
+      <button type="button" data-format="cup" aria-pressed="true">Copo</button>
+      <button type="button" data-format="bottle" aria-pressed="false">Garrafa</button>
+      <button type="button" data-format="boat" aria-pressed="false">Barca</button>
+    </div>
+
+    <div class="builder-layout">
+      <figure class="builder-stage" data-stage-format="cup">
+        <div class="builder-photo">
+          <div class="builder-art">
+            <img src="img/acai-copo-base.webp" alt="Copo de açaí para personalizar" fetchpriority="high" data-format-photo="cup">
+            <img src="img/acai-puro-espiral.webp" alt="Copo de açaí puro em espiral" data-format-photo="pure" hidden>
+            <img src="img/acai-garrafa.webp" alt="Garrafa de açaí" data-format-photo="bottle" hidden>
+            <img src="img/acai-barca-base.webp" alt="Barca de açaí para personalizar" data-format-photo="boat" hidden>
+            <div class="builder-ingredients" data-stage-ingredients aria-hidden="true"></div>
+            <img class="builder-cup-powder" src="img/acai-ninho-polvilhado.webp" alt="" data-cup-powder hidden>
+            <span class="builder-cup-garnish" data-cup-garnish aria-hidden="true" hidden>
+              <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+            </span>
           </div>
         </div>
-        <div class="hero-photo">
-          <img src="img/acai-hero-recorte.webp" alt="Copo de açaí com morango, banana e granola" width="948" height="1080" fetchpriority="high">
+        <img src="img/acai-ingredientes.webp" alt="" data-ingredient-sheet hidden>
+        <img src="img/acai-texturas.webp" alt="" data-texture-sheet hidden>
+        <figcaption>
+          <strong data-stage-title>Copo de açaí</strong>
+          <span>Foto ilustrativa</span>
+        </figcaption>
+        <div class="builder-preview-toppings" data-stage-toppings hidden></div>
+      </figure>
+      <section class="builder-controls" aria-labelledby="product-title">
+        <div class="builder-variants" role="group" aria-label="Tipo de copo">
+          <button type="button" data-product="mix-300" aria-pressed="true">Com adicionais</button>
+          <button type="button" data-product="pure-300" aria-pressed="false">Açaí puro</button>
         </div>
-      </div>
-    </section>
+        <div id="product-content"></div>
+        <noscript><p>Ative o JavaScript para montar o pedido ou faça seu pedido pelo <a href="https://wa.me/5551997259201">WhatsApp</a>.</p></noscript>
+      </section>
+    </div>
 
-    <section class="menu-section" id="cardapio" aria-labelledby="menu-title">
-      <div class="container">
-        <div class="menu-heading">
-          <div>
-            <h2 id="menu-title">Cardápio</h2>
-            <p>Escolha a versão e o tamanho do seu copo.</p>
-          </div>
-          <div class="filters" role="group" aria-label="Filtrar cardápio">
-            <button type="button" data-filter="all" aria-pressed="true">Todos</button>
-            <button type="button" data-filter="mix" aria-pressed="false">Com adicionais</button>
-            <button type="button" data-filter="pure" aria-pressed="false">Açaí puro</button>
-          </div>
-        </div>
-
-        <div class="product-grid">
-          <article class="product-card" data-category="mix">
-            <div class="product-photo">
-              <img src="img/acai-adicionais-morango.webp" alt="Copo de açaí com morangos e creme" width="720" height="720" loading="lazy">
-              <span class="product-size">300 ml</span>
-            </div>
-            <div class="product-copy">
-              <h3>Copo com adicionais</h3>
-              <p>Até 3 adicionais grátis ou 2 pagos.</p>
-              <div class="product-actions"><strong>R$ 12,00</strong><button type="button" class="choose-button" data-product="mix-300" aria-label="Escolher copo com adicionais de 300 ml" aria-haspopup="dialog">Escolher <span aria-hidden="true">+</span></button></div>
-            </div>
-          </article>
-
-          <article class="product-card" data-category="mix">
-            <div class="product-photo">
-              <img src="img/acai-adicionais-morango.webp" alt="Copo de açaí com morangos e creme" width="720" height="720" loading="lazy">
-              <span class="product-size">400 ml</span>
-            </div>
-            <div class="product-copy">
-              <h3>Copo com adicionais</h3>
-              <p>Até 4 adicionais grátis ou 2 pagos.</p>
-              <div class="product-actions"><strong>R$ 15,00</strong><button type="button" class="choose-button" data-product="mix-400" aria-label="Escolher copo com adicionais de 400 ml" aria-haspopup="dialog">Escolher <span aria-hidden="true">+</span></button></div>
-            </div>
-          </article>
-
-          <article class="product-card" data-category="mix">
-            <div class="product-photo">
-              <img src="img/acai-adicionais-morango.webp" alt="Copo de açaí com morangos e creme" width="720" height="720" loading="lazy">
-              <span class="product-size">500 ml</span>
-            </div>
-            <div class="product-copy">
-              <h3>Copo com adicionais</h3>
-              <p>Até 5 adicionais grátis ou 2 pagos.</p>
-              <div class="product-actions"><strong>R$ 18,00</strong><button type="button" class="choose-button" data-product="mix-500" aria-label="Escolher copo com adicionais de 500 ml" aria-haspopup="dialog">Escolher <span aria-hidden="true">+</span></button></div>
-            </div>
-          </article>
-
-          <article class="product-card" data-category="pure">
-            <div class="product-photo">
-              <img src="img/acai-puro-espiral.webp" alt="Copo de açaí puro servido em espiral" width="800" height="800" loading="lazy">
-              <span class="product-size">300 ml</span>
-            </div>
-            <div class="product-copy">
-              <h3>Açaí puro</h3>
-              <p>Só açaí, sem adicionais.</p>
-              <div class="product-actions"><strong>R$ 14,00</strong><button type="button" class="choose-button" data-product="pure-300" aria-label="Escolher açaí puro de 300 ml" aria-haspopup="dialog">Escolher <span aria-hidden="true">+</span></button></div>
-            </div>
-          </article>
-
-          <article class="product-card" data-category="pure">
-            <div class="product-photo">
-              <img src="img/acai-puro-espiral.webp" alt="Copo de açaí puro servido em espiral" width="800" height="800" loading="lazy">
-              <span class="product-size">400 ml</span>
-            </div>
-            <div class="product-copy">
-              <h3>Açaí puro</h3>
-              <p>Só açaí, sem adicionais.</p>
-              <div class="product-actions"><strong>R$ 18,00</strong><button type="button" class="choose-button" data-product="pure-400" aria-label="Escolher açaí puro de 400 ml" aria-haspopup="dialog">Escolher <span aria-hidden="true">+</span></button></div>
-            </div>
-          </article>
-
-          <article class="product-card" data-category="pure">
-            <div class="product-photo">
-              <img src="img/acai-puro-espiral.webp" alt="Copo de açaí puro servido em espiral" width="800" height="800" loading="lazy">
-              <span class="product-size">500 ml</span>
-            </div>
-            <div class="product-copy">
-              <h3>Açaí puro</h3>
-              <p>Só açaí, sem adicionais.</p>
-              <div class="product-actions"><strong>R$ 20,00</strong><button type="button" class="choose-button" data-product="pure-500" aria-label="Escolher açaí puro de 500 ml" aria-haspopup="dialog">Escolher <span aria-hidden="true">+</span></button></div>
-            </div>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <section class="toppings-section" id="adicionais" aria-labelledby="toppings-title">
-      <div class="container toppings-inner">
-        <div class="toppings-intro">
-          <h2 id="toppings-title">Escolha seus <br>adicionais.</h2>
-          <p>Escolha um tipo de adicional por copo. Se quiser mais, inclua extras pagos na montagem.</p>
-          <dl class="toppings-limits" aria-label="Limite de adicionais por copo">
-            <div><dt>300 ml</dt><dd>Até 3 grátis ou 2 pagos</dd></div>
-            <div><dt>400 ml</dt><dd>Até 4 grátis ou 2 pagos</dd></div>
-            <div><dt>500 ml</dt><dd>Até 5 grátis ou 2 pagos</dd></div>
-          </dl>
-          <button class="btn btn-yellow" type="button" data-product="mix-300" aria-haspopup="dialog">Montar meu copo</button>
-        </div>
-        <div class="toppings-card">
-          <h3>Adicionais grátis</h3>
-          <ul>
-            <li>Leite condensado</li>
-            <li>Leite em pó</li>
-            <li>Granola</li>
-            <li>Paçoca</li>
-            <li>Banana</li>
-          </ul>
-        </div>
-        <div class="toppings-card">
-          <h3>Adicionais pagos</h3>
-          <p class="toppings-price-note">Valores por porção, inclusive para extras.</p>
-          <ul>
-            <li><span>Morango</span><strong>R$ 3,00</strong></li>
-            <li><span>Bis</span><strong>R$ 2,00</strong></li>
-            <li><span>Mousse</span><strong>R$ 3,00</strong></li>
-            <li><span>Creme Leitinho</span><strong>R$ 4,00</strong></li>
-            <li><span>Creme de Avelã</span><strong>R$ 3,50</strong></li>
-            <li><span>Ovomaltine</span><strong>R$ 3,00</strong></li>
-            <li><span>Amendoim triturado</span><strong>R$ 2,00</strong></li>
-          </ul>
-        </div>
-      </div>
-    </section>
-
-    <section class="order-info-section" id="como-pedir" aria-labelledby="order-info-title">
-      <div class="container order-info-inner">
-        <div class="order-info-intro">
-          <h2 id="order-info-title">Como pedir</h2>
-          <p>Abra a sacola, informe seu nome e escolha entre entrega e retirada. Confira os itens, quantidades, valores, subtotal, taxa e total. Se precisar, deixe uma observação antes de enviar pelo WhatsApp.</p>
-          <button class="btn btn-yellow" type="button" data-open-cart aria-haspopup="dialog" aria-controls="cart-dialog">Abrir sacola</button>
-        </div>
-        <dl class="order-info-details">
-          <div>
-            <dt>Entrega</dt>
-            <dd><strong data-delivery-price>R$ 9,00</strong></dd>
-            <dd class="order-info-detail">Informe rua, número e bairro.</dd>
-          </div>
-          <div>
-            <dt>Retirada</dt>
-            <dd><strong>Sem taxa</strong></dd>
-          </div>
-          <div>
-            <dt>WhatsApp da loja</dt>
-            <dd><a class="order-info-link" data-store-contact href="https://wa.me/5551997259201" target="_blank" rel="noopener noreferrer">(51) 99725-9201</a></dd>
-          </div>
-        </dl>
-      </div>
+    <section class="builder-info" id="recebimento" aria-labelledby="builder-info-title">
+      <h2 id="builder-info-title">Entrega e retirada</h2>
+      <dl class="order-info-details">
+        <div><dt>Entrega</dt><dd><strong data-delivery-price>R$ 9,00</strong></dd></div>
+        <div><dt>Retirada</dt><dd><strong>Sem taxa</strong></dd></div>
+        <div><dt>WhatsApp da loja</dt><dd><a class="order-info-link" data-store-contact href="https://wa.me/5551997259201" target="_blank" rel="noopener noreferrer">(51) 99725-9201</a></dd></div>
+      </dl>
     </section>
   </main>
 
-  <footer class="site-footer">
-    <div class="container footer-inner">
-      <a class="brand" href="#inicio">
-        <img src="img/logo-acai.png" alt="" width="525" height="514" loading="lazy">
-        <span>Açaí dos Deuses</span>
-      </a>
-      <a class="footer-link" href="#cardapio">Voltar ao cardápio</a>
-    </div>
-  </footer>
-
+  <footer class="builder-footer"><div class="builder-shell"><a class="footer-link" href="#montar">Voltar à montagem</a></div></footer>
   <button class="cart-float btn btn-yellow" type="button" data-floating-cart data-open-cart aria-haspopup="dialog" aria-controls="cart-dialog" hidden>
     <span class="bag-icon" aria-hidden="true"></span>
     <span>Abrir sacola</span>
     <span class="cart-count" data-cart-count>0</span>
   </button>
-  <dialog id="product-dialog" class="shop-dialog" aria-labelledby="product-title"><div id="product-content"></div></dialog>
   <dialog id="cart-dialog" class="shop-dialog" aria-labelledby="cart-title"><div id="cart-content"></div></dialog>
   <div class="live-status" id="site-status" role="status" aria-live="polite"></div>
 </body>
