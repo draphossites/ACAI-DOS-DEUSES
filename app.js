@@ -25,8 +25,8 @@
     { id: 'bis', name: 'Bis', price: 200 },
     { id: 'mousse', name: 'Mousse', price: 300 },
     { id: 'leitinho', name: 'Creme Leitinho', price: 400 },
-    { id: 'avela', name: 'Creme de avelã', price: 350 },
-    { id: 'ovomaltine', name: 'Ovomaltine', price: 300 },
+    { id: 'avela', name: 'Creme de avelã', price: 400 },
+    { id: 'ovomaltine', name: 'Ovomaltine', price: 400 },
     { id: 'amendoim', name: 'Amendoim triturado', price: 200 },
   ];
   const toppingIcons = ['🥛', '🥄', '🌾', '🥜', '🍌', '🍓', '🍫', '🍮', '🥄', '🌰', '🍫', '🥜'];
@@ -35,13 +35,13 @@
   const formatTitles = { cup: 'Copo de açaí', bottle: 'Garrafa de açaí', boat: 'Barca de açaí' };
   const enquirySizes = {
     bottle: [
-      { id: '300', label: '300 ml' },
-      { id: '500', label: '500 ml' },
+      { id: '300', label: '300 ml', price: 1400 },
+      { id: '500', label: '500 ml', price: 1800 },
     ],
     boat: [
-      { id: 'pequena', label: 'Pequena', detail: '1 a 2 pessoas', estimate: 'R$ 25 a R$ 60' },
-      { id: 'media', label: 'Média', detail: '1 a 1,5 kg · 3 a 4 pessoas', estimate: 'R$ 50 a R$ 90' },
-      { id: 'grande', label: 'Grande / Família', detail: '2 kg ou mais · 5 ou mais pessoas', estimate: 'R$ 75 a R$ 135' },
+      { id: 'pequena', label: 'Pequena', detail: '1 a 2 pessoas' },
+      { id: 'media', label: 'Média', detail: '1 a 1,5 kg · 3 a 4 pessoas' },
+      { id: 'grande', label: 'Grande / Família', detail: '2 kg ou mais · 5 ou mais pessoas' },
     ],
   };
   const toppingsById = new Map(toppings.map((topping) => [topping.id, topping]));
@@ -480,9 +480,10 @@
   function renderPurchaseEnquiry(format) {
     const title = formatTitles[format];
     const sizes = enquirySizes[format];
-    const note = format === 'boat'
-      ? 'As faixas abaixo são estimativas. Confirme o valor da sua barca pelo WhatsApp.'
-      : 'Escolha o tamanho da garrafa e consulte o preço pelo WhatsApp.';
+    const isBoat = format === 'boat';
+    const note = isBoat
+      ? 'Escolha o tamanho da barca e consulte o valor pelo WhatsApp.'
+      : 'Escolha o tamanho da garrafa e os adicionais para pedir pelo WhatsApp.';
     productContent.innerHTML = `
       <h2 class="builder-product-title" id="product-title">${title}</h2>
       <p class="builder-quote-note">${note}</p>
@@ -490,12 +491,12 @@
         <div class="dialog-body">
           <fieldset class="dialog-section">
             <legend>Tamanho</legend>
-            <div class="dialog-options ${format === 'boat' ? 'builder-boat-sizes' : ''}">
-              ${sizes.map(({ id, label, detail, estimate }, index) => `
+            <div class="dialog-options ${isBoat ? 'builder-boat-sizes' : ''}">
+              ${sizes.map(({ id, label, detail, price }, index) => `
                 <label class="dialog-choice">
                   <input type="radio" name="size" value="${id}" ${index === 0 ? 'checked' : ''} required>
                   <span><strong>${label}</strong>${detail ? `<small class="builder-size-detail">${detail}</small>` : ''}</span>
-                  ${estimate ? `<span class="dialog-choice-price">${estimate}</span>` : ''}
+                  ${price === undefined ? '' : `<span class="dialog-choice-price">${formatPrice(price)}</span>`}
                 </label>`).join('')}
             </div>
           </fieldset>
@@ -505,7 +506,9 @@
           </fieldset>
         </div>
         <div class="dialog-footer">
-          <button class="dialog-action btn btn-primary builder-add" type="submit"><span>Consultar pelo WhatsApp</span><strong>Sob consulta</strong></button>
+          <button class="dialog-action btn btn-primary builder-add" type="submit">
+            <span>${isBoat ? 'Consultar pelo WhatsApp' : 'Pedir pelo WhatsApp'}</span>${isBoat ? '<strong>Sob consulta</strong>' : ''}
+          </button>
         </div>
       </form>`;
 
@@ -529,7 +532,9 @@
       const size = selectedSize();
       if (!size) return;
       const selected = selectedIds().map((id) => toppingsById.get(id).name);
-      const message = [`Olá! Gostaria de consultar o preço de ${title} (${size.label}).`];
+      const message = [isBoat
+        ? `Olá! Gostaria de consultar o preço de ${title} (${size.label}).`
+        : `Olá! Gostaria de pedir ${title} (${size.label}). Valor base: ${formatPrice(size.price)}.`];
       if (selected.length) message.push(`Adicionais de preferência: ${selected.join(', ')}.`);
       window.location.href = `https://wa.me/${STORE_WHATSAPP}?text=${encodeURIComponent(message.join('\n'))}`;
     });
